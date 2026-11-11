@@ -71,6 +71,14 @@ class ValidationTests(unittest.TestCase):
             "SELECT * FROM public.customers ORDER BY 1",
             "SELECT name FROM public.customers GROUP BY 1",
             "SELECT * FROM public.secrets x JOIN public.customers x ON true",
+            "SELECT s.name, s.setting FROM pg_catalog.pg_settings s "
+            "ANTI JOIN public.customers s ON FALSE",
+            "SELECT s.name FROM public.secrets s SEMI JOIN public.customers s ON TRUE",
+            "SELECT * FROM public.customers c ANTI JOIN pg_catalog.pg_settings s ON FALSE",
+            "SELECT CAST(name AS VARCHAR(:length)) FROM public.customers",
+            "SELECT CAST(name AS VARCHAR(10000000)) FROM public.customers",
+            'WITH "PG_SETTINGS" AS (SELECT TRUE AS ignored) SELECT * FROM PG_SETTINGS',
+            'WITH "CUSTOMERS" AS (SELECT TRUE AS ignored) SELECT * FROM CUSTOMERS',
         ]
         for query in queries:
             with self.subTest(query=query), self.assertRaises(UnsafeQuery):
@@ -97,6 +105,22 @@ class ValidationTests(unittest.TestCase):
         self.assertIn("%(p0)s", sql)
         self.assertIn(" %% ", sql)
         self.assertEqual(parameters, {"p0": 5, "p1": 2})
+
+    def test_numeric_type_modifiers_remain_syntax(self):
+        for cast in ("DECIMAL(12, 2)", "VARCHAR(10)", "TIMESTAMP(3)"):
+            result = validate_sql(f"SELECT CAST(:value AS {cast})",
+                                  {"value": "12.34"}, {})
+            self.assertIn(cast, result.sql)
+            self.assertEqual(result.parameters, {"p0": "12.34"})
+
+    def test_identifiers_follow_postgres_case_rules(self):
+        for query in (
+            "SELECT ID FROM PUBLIC.CUSTOMERS",
+            "WITH CUSTOMERS AS (SELECT id FROM public.customers) SELECT id FROM customers",
+            'WITH "CUSTOMERS" AS (SELECT id FROM public.customers) SELECT id FROM "CUSTOMERS"',
+        ):
+            result = validate_sql(query, {}, SCHEMA)
+            self.assertIn("public.customers", result.sql)
 
 
 if __name__ == "__main__":

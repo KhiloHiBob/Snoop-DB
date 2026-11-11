@@ -47,8 +47,12 @@ class PostgresDialect:
         elevated = conn.execute("""
             SELECT has_database_privilege(current_database(), 'CREATE,TEMP')
                 OR EXISTS (
+                    SELECT 1 FROM pg_database
+                    WHERE datname = current_database() AND datdba = current_user::regrole
+                )
+                OR EXISTS (
                     SELECT 1 FROM pg_namespace
-                    WHERE has_schema_privilege(oid, 'CREATE')
+                    WHERE has_schema_privilege(oid, 'CREATE') OR nspowner = current_user::regrole
                 )
         """).fetchone()[0]
         if not role or role[0] or memberships or elevated:
@@ -59,6 +63,7 @@ class PostgresDialect:
                        OR has_any_column_privilege(c.oid, 'SELECT'),
                    has_table_privilege(c.oid, 'INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
                        OR has_any_column_privilege(c.oid, 'INSERT,UPDATE,REFERENCES')
+                       OR c.relowner = current_user::regrole
             FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
             WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
               AND n.nspname NOT IN ('pg_catalog', 'information_schema')
@@ -69,18 +74,18 @@ class PostgresDialect:
             raise DatabasePolicyError("Database role has privileges beyond the explicit SELECT allowlist")
         unsafe_objects = conn.execute("""
             SELECT EXISTS (
-                SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-                WHERE n.nspname NOT LIKE 'pg_%%'
-                  AND CASE WHEN c.relkind = 'S'
-                      THEN has_sequence_privilege(c.oid, 'USAGE,UPDATE') ELSE false END
+                SELECT 1 FROM pg_class c
+                WHERE CASE WHEN c.relkind = 'S'
+                      THEN has_sequence_privilege(c.oid, 'SELECT,USAGE,UPDATE')
+                          OR c.relowner = current_user::regrole ELSE false END
             ) OR EXISTS (
                 SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
                 WHERE n.nspname NOT IN ('pg_catalog', 'information_schema')
-                  AND has_function_privilege(p.oid, 'EXECUTE')
+                  AND (has_function_privilege(p.oid, 'EXECUTE') OR p.proowner = current_user::regrole)
             )
         """).fetchone()[0]
         if unsafe_objects:
-            raise DatabasePolicyError("Revoke sequence writes and execution of user-defined routines")
+            raise DatabasePolicyError("Revoke sequence access and execution/ownership of user-defined routines")
 
     def discover(self, settings):
         from snoop_db.schema import discover_postgres

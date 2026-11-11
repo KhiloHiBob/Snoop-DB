@@ -8,6 +8,7 @@ from sqlglot import exp
 from sqlglot.errors import SqlglotError
 from sqlglot.optimizer.scope import Scope, traverse_scope
 from sqlglot.optimizer.qualify import qualify
+from sqlglot.optimizer.normalize_identifiers import normalize_identifiers
 
 
 # SQLGlot's unsupported-command warnings include raw SQL, potentially with values.
@@ -42,31 +43,22 @@ SAFE_CAST_TYPES = {"INT", "BIGINT", "SMALLINT", "DECIMAL", "DOUBLE", "FLOAT",
                    "BOOLEAN", "TEXT", "VARCHAR", "CHAR", "DATE", "TIMESTAMP", "TIMESTAMPTZ"}
 
 
-def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres") -> ValidatedQuery:
-    if not isinstance(query, str) or not query.strip() or len(query) > 20000:
-        raise UnsafeQuery("Provide one SELECT statement of at most 20,000 characters")
-    if not isinstance(parameters, dict) or any(
-        not isinstance(key, str) or not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", key)
-        or not (value is None or type(value) in {str, int, float, bool})
-        or (type(value) is float and not math.isfinite(value))
-        or (isinstance(value, str) and len(value) > 10000)
-        for key, value in parameters.items()
-    ):
-        raise UnsafeQuery("Parameters must be named JSON scalar values")
-    try:
-        statements = sqlglot.parse(query, read=dialect)
-    except (SqlglotError, RecursionError) as exc:
-        raise UnsafeQuery("SQL could not be parsed") from exc
-    if len(statements) != 1 or not isinstance(statements[0], (exp.Select, exp.SetOperation)):
+def _check_tree(tree, schema, dialect):
+    if not isinstance(tree, (exp.Select, exp.SetOperation)):
         raise UnsafeQuery("Only one read-only SELECT (including safe CTEs) is permitted")
-    tree = statements[0]
     for node in tree.walk():
         if type(node) not in SAFE_NODES:
             raise UnsafeQuery(f"SQL construct is not approved: {type(node).__name__}")
         if isinstance(node, exp.With) and node.args.get("recursive"):
             raise UnsafeQuery("Recursive CTEs are not supported")
+        if isinstance(node, exp.Join) and node.args.get("kind") in {"SEMI", "ANTI"}:
+            raise UnsafeQuery("Use EXISTS/NOT EXISTS instead of SEMI/ANTI JOIN")
         if isinstance(node, exp.DataType) and node.this.value not in SAFE_CAST_TYPES:
             raise UnsafeQuery("Cast type is not approved")
+        if isinstance(node, exp.DataTypeParam):
+            if (not isinstance(node.this, exp.Literal) or not node.this.is_int
+                    or not 0 <= int(node.this.this) <= 10000):
+                raise UnsafeQuery("Type modifiers must be bounded integer constants")
         if isinstance(node, exp.Identifier) and "%" in node.name:
             raise UnsafeQuery("Percent signs are not supported in identifiers")
         if isinstance(node, exp.Column) and (node.db or node.catalog):
@@ -75,8 +67,16 @@ def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres")
             expressions = node.expressions if isinstance(node, exp.Group) else [node.this]
             if any(isinstance(item, (exp.Literal, exp.Placeholder)) for item in expressions):
                 raise UnsafeQuery("Use named expressions instead of positional GROUP BY/ORDER BY")
+        # Inspect actual Table nodes, not just scope-selected sources: some
+        # dialect rewrites and duplicate aliases can hide selected sources.
+        if isinstance(node, exp.Table) and (node.db or node.catalog):
+            if node.catalog or f"{node.db}.{node.name}" not in schema:
+                raise UnsafeQuery("Every base table/view must be explicitly schema-qualified and allowed")
     try:
         for scope in traverse_scope(tree):
+            for table in scope.tables:
+                if not table.db and table.name not in scope.cte_sources:
+                    raise UnsafeQuery("Unqualified relations must refer to a visible CTE")
             for _, source in scope.selected_sources.values():
                 if isinstance(source, Scope):
                     continue
@@ -93,6 +93,27 @@ def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres")
         qualify(tree.copy(), dialect=dialect, schema=known_columns)
     except SqlglotError as exc:
         raise UnsafeQuery("Unable to resolve query sources") from exc
+
+
+def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres") -> ValidatedQuery:
+    if not isinstance(query, str) or not query.strip() or len(query) > 20000:
+        raise UnsafeQuery("Provide one SELECT statement of at most 20,000 characters")
+    if not isinstance(parameters, dict) or any(
+        not isinstance(key, str) or not re.fullmatch(r"[a-zA-Z_][a-zA-Z0-9_]*", key)
+        or not (value is None or type(value) in {str, int, float, bool})
+        or (type(value) is float and not math.isfinite(value))
+        or (isinstance(value, str) and len(value) > 10000)
+        for key, value in parameters.items()
+    ):
+        raise UnsafeQuery("Parameters must be named JSON scalar values")
+    try:
+        statements = sqlglot.parse(query, read=dialect)
+        if len(statements) != 1:
+            raise UnsafeQuery("Only one read-only SELECT is permitted")
+        tree = normalize_identifiers(statements[0], dialect=dialect) if statements[0] else None
+        _check_tree(tree, schema, dialect)
+    except (SqlglotError, RecursionError) as exc:
+        raise UnsafeQuery("SQL could not be safely parsed or resolved") from exc
     # Bind every literal, including model-inlined user values, rather than trusting
     # the provider to separate SQL from data correctly.
     bound = {}
@@ -104,6 +125,8 @@ def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres")
             value = parameters[node.name]
             used.add(node.name)
         elif isinstance(node, exp.Literal):
+            if isinstance(node.parent, exp.DataTypeParam):
+                continue
             value = node.to_py()
         else:
             continue
@@ -115,6 +138,10 @@ def validate_sql(query: str, parameters: dict, schema: dict, dialect="postgres")
     try:
         normalized = tree.sql(dialect=dialect, comments=False,
                               unsupported_level=sqlglot.ErrorLevel.RAISE)
-    except SqlglotError as exc:
+        rendered = sqlglot.parse(normalized, read=dialect)
+        if len(rendered) != 1:
+            raise UnsafeQuery("Rendered SQL must contain exactly one SELECT")
+        _check_tree(normalize_identifiers(rendered[0], dialect=dialect), schema, dialect)
+    except (SqlglotError, RecursionError) as exc:
         raise UnsafeQuery("SQL cannot be safely rendered for this dialect") from exc
     return ValidatedQuery(normalized, bound)

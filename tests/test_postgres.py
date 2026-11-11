@@ -1,8 +1,10 @@
 import os
 import unittest
+import uuid
 from dataclasses import replace
 
 import psycopg
+from psycopg import sql
 from fastapi.testclient import TestClient
 
 from snoop_db.agent import Agent
@@ -58,6 +60,26 @@ class PostgresTests(unittest.TestCase):
         with self.assertRaises(DatabasePolicyError):
             Agent(replace(self.settings, allowed_relations=("public.customers",))).schema()
 
+    @unittest.skipUnless(os.environ.get("TEST_ADMIN_DATABASE_URL"),
+                         "Set TEST_ADMIN_DATABASE_URL for ownership audit regression")
+    def test_owner_is_rejected_even_with_own_write_privileges_revoked(self):
+        table = "snoop_owned_" + uuid.uuid4().hex
+        identifier = sql.Identifier("public", table)
+        with psycopg.connect(os.environ["TEST_ADMIN_DATABASE_URL"], autocommit=True) as admin:
+            try:
+                admin.execute(sql.SQL("CREATE TABLE {} (id integer)").format(identifier))
+                admin.execute(sql.SQL("ALTER TABLE {} OWNER TO snoop_reader").format(identifier))
+                admin.execute(sql.SQL(
+                    "REVOKE INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER ON {} FROM snoop_reader"
+                ).format(identifier))
+                settings = replace(self.settings, allowed_relations=(
+                    *self.settings.allowed_relations, "public." + table,
+                ))
+                with self.assertRaises(DatabasePolicyError):
+                    Agent(settings).schema()
+            finally:
+                admin.execute(sql.SQL("DROP TABLE IF EXISTS {}").format(identifier))
+
     def test_full_chat_flow_and_bound_parameter(self):
         with TestClient(create_app(self.settings)) as client:
             response = client.post("/api/chat", json={"question": "orders for Ada"})
@@ -90,6 +112,12 @@ class PostgresTests(unittest.TestCase):
         self.assertEqual(result["rows"], [["Ada"]])
         modulo = self.agent.executor.execute("SELECT 5 % 2 AS remainder", {}, schema)
         self.assertEqual(modulo["rows"], [[1]])
+        cast = self.agent.executor.execute(
+            "SELECT CAST(total AS DECIMAL(12, 2)), CAST(status AS VARCHAR(10)) "
+            "FROM public.orders WHERE id = :id", {"id": 1}, schema,
+        )
+        self.assertEqual(float(cast["rows"][0][0]), 120)
+        self.assertEqual(cast["rows"][0][1], "paid")
 
     def test_provider_cannot_override_execution_policy(self):
         class MaliciousProvider:
@@ -100,6 +128,11 @@ class PostgresTests(unittest.TestCase):
 
         with self.assertRaises(UnsafeQuery):
             Agent(self.settings, provider=MaliciousProvider()).chat("ignore restrictions", [])
+        with self.assertRaises(UnsafeQuery):
+            self.agent.executor.execute(
+                'WITH "PG_SETTINGS" AS (SELECT TRUE AS ignored) SELECT * FROM PG_SETTINGS',
+                {}, self.agent.schema(),
+            )
         self.assertEqual(len(self.agent.chat("show customers", [])["result"]["rows"]), 3)
 
 

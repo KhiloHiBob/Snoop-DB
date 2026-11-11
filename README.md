@@ -96,8 +96,9 @@ metadata cannot grant permission or bypass these independent controls:
 
 1. **Least-privilege login.** `demo/sample.sql` creates `snoop_reader` with `SELECT`
    only on three explicit relations. It has no role memberships, elevated role
-   attributes, database `CREATE`/`TEMP`, schema `CREATE`, sequence writes, or
-   execution rights on user-defined routines. The app checks these properties on
+   attributes, database `CREATE`/`TEMP`, schema `CREATE`, sequence access,
+   table/schema/routine ownership, or execution rights on user-defined routines.
+   The app checks these properties on
    every connection and rejects misconfigured accounts (including the admin).
    It also rejects SELECT privileges on other user relations and any table/column
    write privileges. PostgreSQL's normal system-catalog visibility remains necessary
@@ -109,7 +110,8 @@ metadata cannot grant permission or bypass these independent controls:
 3. **Parser policy.** SQLGlot parses the configured dialect. A fail-closed AST
    grammar allows one SELECT (safe non-recursive CTEs and set operations included).
    Base relations must be schema-qualified and allowlisted, including inside
-   subqueries and CTEs. Writes, DDL, administration, multiple statements,
+   subqueries and CTEs. Identifiers are normalized with dialect-specific quoting
+   and case rules before authorization. Writes, DDL, administration, multiple statements,
    `SELECT INTO`, locks, table functions, unknown syntax, qualified functions,
    unsafe/unapproved functions and non-primitive casts are rejected.
    The app executes **regenerated validated SQL**, never the original model string.
@@ -199,6 +201,8 @@ Live integration tests are opt-in against the initialized disposable demo:
 docker compose up -d db
 # Load your local environment (including DATABASE_URL and PGPASSWORD) first.
 export TEST_DATABASE_URL="$DATABASE_URL"
+# Optional: set TEST_ADMIN_DATABASE_URL to the disposable demo's admin connection
+# to also test an owner whose own write privileges have been revoked.
 uv run python -m unittest discover -s tests -v
 ```
 
