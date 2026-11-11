@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snoop-DB</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #667085; --line: #e3e6eb;
+    --accent: #0f766e; --accent-ink: #ffffff; --soft: #eef6f5;
+    --prod: #b42318; --prod-bg: #fdecea; --ok-bg: #e7f5ec; --ok: #1a7f43; --warn-bg: #fff6e0; --warn: #8a5a00;
+    --code: #f0f2f5; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --panel: #171b21; --ink: #e8eaee; --muted: #98a2b3; --line: #2a303a;
+      --accent: #2dd4bf; --accent-ink: #062b27; --soft: #14282a;
+      --prod: #ffb4a8; --prod-bg: #3a1a17; --ok-bg: #12301f; --ok: #6ee7a0; --warn-bg: #33270a; --warn: #fcd34d;
+      --code: #1f242c; --shadow: none;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --panel: #171b21; --ink: #e8eaee; --muted: #98a2b3; --line: #2a303a;
+    --accent: #2dd4bf; --accent-ink: #062b27; --soft: #14282a;
+    --prod: #ffb4a8; --prod-bg: #3a1a17; --ok-bg: #12301f; --ok: #6ee7a0; --warn-bg: #33270a; --warn: #fcd34d;
+    --code: #1f242c; --shadow: none;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+         display: flex; flex-direction: column; }
+  header { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 10px 16px; background: var(--panel);
+           border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+  header h1 span { color: var(--accent); }
+  .spacer { flex: 1; }
+  select, input[type=text], textarea, button { font: inherit; color: inherit; }
+  select, .ghost { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  .toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .badge { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600;
+           background: var(--ok-bg); color: var(--ok); }
+  .badge.prod { background: var(--prod-bg); color: var(--prod); }
+  main { flex: 1; overflow-y: auto; padding: 16px; }
+  .wrap { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 10px; }
+  .empty h2 { color: var(--ink); margin-bottom: 4px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 14px; }
+  .chip { border: 1px solid var(--line); background: var(--panel); border-radius: 999px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .msg-user { align-self: flex-end; max-width: 80%; background: var(--accent); color: var(--accent-ink); padding: 8px 13px;
+              border-radius: 14px 14px 4px 14px; white-space: pre-wrap; word-break: break-word; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; color: var(--muted); font-size: 12.5px; }
+  .summary { margin: 4px 0 10px; word-break: break-word; }
+  .summary code, .sql { background: var(--code); border-radius: 6px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; }
+  .summary code { padding: 1px 5px; }
+  .note { border-radius: 8px; padding: 6px 10px; font-size: 13px; margin: 6px 0; background: var(--warn-bg); color: var(--warn); }
+  .note.err { background: var(--prod-bg); color: var(--prod); }
+  .result { border: 1px solid var(--line); border-radius: 10px; margin-top: 10px; overflow: hidden; }
+  .result-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 10px; background: var(--soft); }
+  .result-head b { flex: 1; min-width: 120px; }
+  .result-head small { color: var(--muted); }
+  .result-head input { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 3px 8px; width: 150px; }
+  .btn { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; padding: 3px 9px; cursor: pointer; font-size: 12.5px; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .tablewrap { max-height: 420px; overflow: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+  th { position: sticky; top: 0; background: var(--panel); cursor: pointer; user-select: none; z-index: 1; }
+  th.sorted::after { content: attr(data-dir); color: var(--accent); margin-left: 4px; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  td.null { color: var(--muted); font-style: italic; }
+  tbody tr:hover { background: var(--soft); }
+  .stat { padding: 18px 14px; }
+  .stat .v { font-size: 34px; font-weight: 700; color: var(--accent); word-break: break-all; }
+  .stat .k { color: var(--muted); font-size: 13px; }
+  details { margin-top: 10px; font-size: 13px; }
+  summary { cursor: pointer; color: var(--muted); }
+  .sql { display: block; padding: 8px 10px; margin: 6px 0; white-space: pre-wrap; word-break: break-word; }
+  .steps div { padding: 2px 0; color: var(--muted); }
+  .dots::after { content: ""; animation: d 1.2s steps(4) infinite; }
+  @keyframes d { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+  footer { padding: 10px 16px 14px; background: var(--bg); }
+  form { max-width: 1100px; margin: 0 auto; display: flex; gap: 10px; align-items: flex-end; }
+  textarea { flex: 1; resize: none; min-height: 46px; max-height: 160px; padding: 11px 13px; border-radius: 12px; border: 1px solid var(--line);
+             background: var(--panel); }
+  textarea:focus, select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  #send { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 0 20px; height: 46px; font-weight: 600; cursor: pointer; }
+  #send:disabled { opacity: .5; cursor: progress; }
+  .hint { max-width: 1100px; margin: 6px auto 0; color: var(--muted); font-size: 12px; }
+  @media (max-width: 600px) { header { padding: 10px 16px; } main { padding: 12px 16px; } footer { padding: 8px 16px 12px; } .msg-user { max-width: 92%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Snoop<span>-DB</span></h1>
+  <label class="toggle">Environment
+    <select id="env"><option value="auto">Auto (from question)</option></select>
+  </label>
+  <label class="toggle" title="By default the AI only sees schemas. Turn on to let it read result rows (never for prod unless enabled in config).">
+    <input type="checkbox" id="rows"> AI may read rows
+  </label>
+  <span class="spacer"></span>
+  <button class="ghost btn" id="api" title="API address">API</button>
+  <button class="ghost btn" id="clear">Clear</button>
+</header>
+
+<main id="main"><div class="wrap" id="log"></div></main>
+
+<footer>
+  <form id="form">
+    <textarea id="q" rows="1" placeholder="Ask about any table or data… e.g. “list tables that have a company_id column”" autofocus></textarea>
+    <button id="send" type="submit">Ask</button>
+  </form>
+  <div class="hint">Read-only in every environment. Enter to send, Shift+Enter for a new line. The environment used is always shown on the answer.</div>
+</footer>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const log = $('log'), main = $('main'), q = $('q'), send = $('send');
+  const store = {
+    get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+    set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
+  };
+  let base = store.get('snoop.api', location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '');
+  let history = [];
+
+  const EXAMPLES = [
+    'List all tables in the demo database',
+    'Describe the employees table',
+    'How many employees per department?',
+    'Show the 10 most recent hires',
+  ];
+
+  function el(tag, props = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'class') e.className = v; else if (k === 'text') e.textContent = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v);
+    }
+    for (const k of kids.flat()) if (k != null) e.append(k);
+    return e;
+  }
+  const scroll = () => { main.scrollTop = main.scrollHeight; };
+
+  // ---- minimal, safe inline markdown: **bold** and `code` (everything else is plain text)
+  function mdInline(text) {
+    const frag = document.createDocumentFragment();
+    String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/g).forEach((part) => {
+      if (/^\*\*[^*]+\*\*$/.test(part)) frag.append(el('b', { text: part.slice(2, -2) }));
+      else if (/^`[^`]+`$/.test(part)) frag.append(el('code', { text: part.slice(1, -1) }));
+      else frag.append(document.createTextNode(part));
+    });
+    return frag;
+  }
+
+  const fmt = (v) => (v !== null && typeof v === 'object') ? JSON.stringify(v) : String(v);
+  const isNum = (v) => typeof v === 'number' || (typeof v === 'string' && v !== '' && /^-?\d+(\.\d+)?$/.test(v));
+
+  function csvOf(columns, rows) {
+    const esc = (v) => { const s = v === null ? '' : fmt(v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    return [columns.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\n');
+  }
+
+  function renderTable(res) {
+    const { columns, rows } = res;
+    let view = rows.slice(), sortCol = -1, dir = 1, term = '';
+    const tbody = el('tbody'), thead = el('tr');
+    const count = el('small');
+
+    const draw = () => {
+      let r = view;
+      if (term) r = r.filter((row) => row.some((c) => c !== null && fmt(c).toLowerCase().includes(term)));
+      if (sortCol >= 0) {
+        r = r.slice().sort((a, b) => {
+          const x = a[sortCol], y = b[sortCol];
+          if (x === null) return 1; if (y === null) return -1;
+          return (isNum(x) && isNum(y) ? Number(x) - Number(y) : fmt(x).localeCompare(fmt(y))) * dir;
+        });
+      }
+      tbody.replaceChildren(...r.map((row) => el('tr', {}, row.map((c) => {
+        const td = el('td', { text: c === null ? 'null' : fmt(c) });
+        if (c === null) td.className = 'null'; else if (isNum(c)) td.className = 'num';
+        if (c !== null && fmt(c).length > 40) td.title = fmt(c).slice(0, 600);
+        return td;
+      }))));
+      count.textContent = `${r.length}${r.length !== rows.length ? ' of ' + rows.length : ''} row${rows.length === 1 ? '' : 's'}`
+        + (res.truncated ? ' (truncated)' : '') + (res.elapsed_ms ? ` · ${res.elapsed_ms} ms` : '');
+    };
+
+    columns.forEach((c, i) => thead.append(el('th', { text: c, onclick: () => {
+      dir = sortCol === i ? -dir : 1; sortCol = i;
+      thead.querySelectorAll('th').forEach((t) => { t.classList.remove('sorted'); t.removeAttribute('data-dir'); });
+      thead.children[i].classList.add('sorted'); thead.children[i].dataset.dir = dir === 1 ? '▲' : '▼'; draw();
+    } })));
+
+    const filter = el('input', { type: 'text', placeholder: 'Filter…', 'aria-label': 'Filter rows' });
+    filter.addEventListener('input', () => { term = filter.value.toLowerCase(); draw(); });
+    const csvBtn = el('button', { class: 'btn', type: 'button', text: 'CSV', onclick: () => {
+      const a = el('a', { href: URL.createObjectURL(new Blob([csvOf(columns, rows)], { type: 'text/csv' })), download: (res.title || 'result').replace(/\W+/g, '_') + '.csv' });
+      a.click(); URL.revokeObjectURL(a.href);
+    } });
+    const copyBtn = el('button', { class: 'btn', type: 'button', text: 'Copy', onclick: async () => {
+      const cell = (v) => (v === null ? '' : fmt(v).replace(/[\t\r\n]+/g, ' '));
+      const tsv = [columns, ...rows].map((r) => r.map(cell).join('\t')).join('\n');
+      try { await navigator.clipboard.writeText(tsv); copyBtn.textContent = 'Copied'; setTimeout(() => (copyBtn.textContent = 'Copy'), 1200); } catch { copyBtn.textContent = 'Failed'; }
+    } });
+
+    draw();
+    return el('div', {},
+      el('div', { class: 'result-head' }, el('b', { text: res.title || 'Result' }), count, filter, copyBtn, csvBtn),
+      el('div', { class: 'tablewrap' }, el('table', {}, el('thead', {}, thead), tbody)));
+  }
+
+  function renderResult(res) {
+    const box = el('div', { class: 'result' });
+    if (res.columns.length === 1 && res.rows.length === 1) {
+      box.append(el('div', { class: 'result-head' }, el('b', { text: res.title || 'Result' })),
+        el('div', { class: 'stat' }, el('div', { class: 'v', text: res.rows[0][0] === null ? 'null' : fmt(res.rows[0][0]) }), el('div', { class: 'k', text: res.columns[0] })));
+    } else if (!res.columns.length) {
+      box.append(el('div', { class: 'result-head' }, el('b', { text: res.title || 'Result' }), el('small', { text: 'no columns returned' })));
+    } else {
+      box.append(renderTable(res));
+    }
+    if (res.executed) box.append(el('details', { style: 'padding:0 10px 8px' }, el('summary', { text: 'Executed' }), el('code', { class: 'sql', text: res.executed }),
+      ...(res.notes || []).map((n) => el('div', { class: 'note', text: n }))));
+    return box;
+  }
+
+  function renderAnswer(data) {
+    const prod = data.production;
+    const card = el('div', { class: 'card' });
+    card.append(el('div', { class: 'meta' },
+      el('span', { class: 'badge' + (prod ? ' prod' : ''), text: (prod ? '⚠ ' : '') + 'Ran on ' + data.environment.toUpperCase() }),
+      el('span', { text: data.environment_reason }),
+      data.rows_sent_to_llm ? el('span', { class: 'badge', style: 'background:var(--warn-bg);color:var(--warn)', text: 'AI saw rows' }) : null));
+    if (data.summary) card.append(el('div', { class: 'summary' }, mdInline(data.summary)));
+    (data.warnings || []).forEach((w) => card.append(el('div', { class: 'note', text: w })));
+    const shown = (data.results || []).filter((r) => r.role === 'answer');
+    shown.forEach((r) => card.append(renderResult(r)));
+    if (!shown.length && !data.summary) card.append(el('div', { class: 'note', text: 'No result was produced.' }));
+    const steps = data.steps || [];
+    if (steps.length) {
+      card.append(el('details', {}, el('summary', { text: `What I did (${steps.length} step${steps.length === 1 ? '' : 's'})` }),
+        el('div', { class: 'steps' }, steps.map((s) => el('div', {}, `${s.status === 'ok' ? '✓' : '✗'} ${s.tool} ${JSON.stringify(s.input).slice(0, 220)}${s.detail ? ' — ' + s.detail : ''}`)))));
+    }
+    return card;
+  }
+
+  function showEmpty() {
+    log.replaceChildren(el('div', { class: 'empty' }, el('h2', { text: 'Ask anything about your data' }),
+      el('div', { text: 'Plain English in, safe read-only queries out. Tables, counts, schemas, lookups.' }),
+      el('div', { class: 'chips' }, EXAMPLES.map((t) => el('button', { class: 'chip', type: 'button', text: t, onclick: () => { q.value = t; ask(); } })))));
+  }
+
+  async function api(path, opts) {
+    const r = await fetch(base + path, opts);
+    let body = null; try { body = await r.json(); } catch { /* not JSON */ }
+    if (!r.ok) throw new Error((body && (body.detail || body.message)) || `HTTP ${r.status}`);
+    return body;
+  }
+
+  async function ask() {
+    const text = q.value.trim();
+    if (!text || send.disabled) return;
+    if (log.querySelector('.empty')) log.replaceChildren();
+    log.append(el('div', { class: 'msg-user', text }));
+    const pending = el('div', { class: 'card' }, el('span', { class: 'dots', text: 'Snooping' }));
+    log.append(pending); scroll();
+    q.value = ''; q.style.height = ''; send.disabled = true;
+    try {
+      const data = await api('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message: text, environment: $('env').value, llm_sees_rows: $('rows').checked, history }) });
+      pending.replaceWith(renderAnswer(data));
+      history.push({ role: 'user', content: text }, { role: 'assistant', content: `[${data.environment}] ${data.summary || ''}` });
+      history = history.slice(-10);
+    } catch (e) {
+      pending.replaceWith(el('div', { class: 'card' }, el('div', { class: 'note err', text: String(e.message || e) }),
+        el('div', { class: 'meta', text: `API: ${base || location.origin}` })));
+    } finally { send.disabled = false; q.focus(); scroll(); }
+  }
+
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); ask(); });
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
+  q.addEventListener('input', () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; });
+  $('clear').addEventListener('click', () => { history = []; showEmpty(); });
+  $('api').addEventListener('click', () => {
+    const v = prompt('Snoop-DB API address (empty = same origin)', base);
+    if (v !== null) { base = v.trim().replace(/\/$/, ''); store.set('snoop.api', base); loadEnvs(); }
+  });
+
+  async function loadEnvs() {
+    const sel = $('env');
+    try {
+      const envs = await api('/api/environments');
+      sel.replaceChildren(el('option', { value: 'auto', text: 'Auto (from question)' }),
+        ...envs.map((e) => el('option', { value: e.name, text: e.name + (e.production ? '  (view-only prod)' : '') })));
+    } catch (e) {
+      sel.replaceChildren(el('option', { value: 'auto', text: 'Auto (API not reachable)' }));
+    }
+  }
+
+  showEmpty(); loadEnvs();
+})();
+</script>
+</body>
+</html>

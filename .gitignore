@@ -1,0 +1,25 @@
+# Local, private configuration: never commit (real hosts, ports, resource names, credentials)
+config/local.yaml
+knowledge_local/
+.env
+.env.*
+!.env.example
+
+# Query exports can contain customer data
+*.csv
+exports/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,18 @@
+# Demo database so Snoop-DB runs without any private access.
+#   docker compose up -d
+#   export SNOOP_LOCAL_PG_PASSWORD=snoop
+services:
+  demo-postgres:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:55432:5432"
+    environment:
+      POSTGRES_USER: snoop
+      POSTGRES_PASSWORD: snoop
+      POSTGRES_DB: snoop_demo
+    volumes:
+      - ./sample/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U snoop -d snoop_demo"]
+      interval: 5s
+      retries: 10
