@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snoop-DB</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/chat.js" defer></script>
+</head>
+<body>
+  <main>
+    <h1>Snoop-DB</h1>
+    <p>Your read-only database engineer. SQL is validated before execution.</p>
+    <p id="privacy">Checking provider and privacy settings…</p>
+    <details><summary>Try the offline demo</summary>
+      <p>Show schema · Show customers · Orders for Ada · Order count per customer ·
+        Total paid order amount · Show plan for customers · Explain indexes</p>
+    </details>
+    <section id="chat" aria-live="polite" aria-label="Conversation"></section>
+    <form id="form">
+      <label for="question">Ask about your database</label>
+      <textarea id="question" required maxlength="4000" rows="3"
+        placeholder="Order count per customer"></textarea>
+      <button id="send" type="submit">Ask</button>
+      <button id="clear" type="button">New conversation</button>
+    </form>
+  </main>
+</body>
+</html>
