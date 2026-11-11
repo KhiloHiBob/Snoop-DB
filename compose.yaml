@@ -1,0 +1,41 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: snoop
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      SNOOP_DB_PASSWORD: ${SNOOP_DB_PASSWORD:?Set SNOOP_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./demo/init.sh:/docker-entrypoint-initdb.d/01-init.sh:ro
+      - ./demo/sample.sql:/demo/sample.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d snoop"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      # Use libpq environment fields: passwords need no URL escaping.
+      DATABASE_URL: "host=db dbname=snoop user=snoop_reader"
+      PGPASSWORD: ${SNOOP_DB_PASSWORD:?Set SNOOP_DB_PASSWORD in .env}
+      ALLOWED_RELATIONS: ${ALLOWED_RELATIONS:-public.customers,public.orders,public.order_summary}
+      DB_DIALECT: ${DB_DIALECT:-postgres}
+      LLM_PROVIDER: ${LLM_PROVIDER:-demo}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4.1-mini}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      SEND_RESULTS_TO_LLM: ${SEND_RESULTS_TO_LLM:-false}
+      MAX_ROWS: ${MAX_ROWS:-100}
+      STATEMENT_TIMEOUT_MS: ${STATEMENT_TIMEOUT_MS:-5000}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  postgres_data:
