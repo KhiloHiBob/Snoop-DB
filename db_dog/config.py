@@ -25,6 +25,7 @@ DEFAULT_LIMITS: dict[str, Any] = {
 }
 
 DEFAULT_LLM: dict[str, Any] = {
+    "backend": "claude_cli",   # your local Claude login (default) | anthropic_api | auto
     "model": "claude-sonnet-5-5",
     "max_steps": 8,
     "max_tokens": 2048,

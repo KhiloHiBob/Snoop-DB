@@ -16,8 +16,8 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .agent import Agent, AnthropicLLM
-from .agent.llm import LLM, LLMUnavailable
+from .agent import Agent
+from .agent.llm import LLM, LLMUnavailable, make_llm
 from .config import Config, load_config
 from .connectors import ConnectorHub
 from .connectors.postgres import PolicyError
@@ -49,7 +49,7 @@ class QueryRequest(BaseModel):
 def create_app(config: Config | None = None, llm: LLM | None = None, hub: ConnectorHub | None = None) -> FastAPI:
     config = config or load_config()
     hub = hub or ConnectorHub(config)
-    llm = llm or AnthropicLLM(config.llm["model"], int(config.llm["max_tokens"]))
+    llm = llm or make_llm(config.llm)
     agent = Agent(config, hub, llm)
 
     app = FastAPI(title="db-dog", version=__version__)

@@ -16,8 +16,9 @@ environment stated.
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 docker compose up -d                      # demo Postgres on 127.0.0.1:55432
-export ANTHROPIC_API_KEY=...              # needed for the chat; /api/query works without it
 cp config/config.example.yaml config/local.yaml   # then edit (git-ignored)
+# The chat uses your own local Claude login (`claude`, Claude Code CLI): no API key needed.
+# To use the Anthropic API instead: set llm.backend: anthropic_api and export ANTHROPIC_API_KEY.
 .venv/bin/python -m db_dog                # http://127.0.0.1:8137
 ```
 
