@@ -23,6 +23,7 @@ DEFAULT_LIMITS: dict[str, Any] = {
     "max_cell_chars": 2000,
     "fan_out_max_databases": 25,            # for queries that read data
     "fan_out_max_metadata_databases": 200,  # catalog-only queries are cheap, so search them all
+    "allow_global_aggregates": True,        # pure aggregates (count/sum/...) need no company_id
     "big_table_rows": 100_000,              # at or above this, a company_id filter is always required
 }
 

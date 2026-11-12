@@ -6,6 +6,8 @@
   * Big tables (``limits.big_table_rows``, default 100k): a company_id predicate is ALWAYS required, in
     every environment, and the agent must ask the user for the company instead of guessing.
   * Schema / metadata queries are exempt from the company_id rule.
+  * Platform-wide aggregates (``limits.allow_global_aggregates``, default on): a pure aggregate over one table,
+    e.g. ``SELECT count(*) FROM employee``, is allowed without company_id (it returns no rows or per-tenant data).
 """
 
 from __future__ import annotations
@@ -14,7 +16,7 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..config import Config, EnvConfig
-from .sql_guard import GuardResult, guard_sql, has_company_id_predicate
+from .sql_guard import GuardResult, guard_sql, has_company_id_predicate, is_global_aggregate
 
 
 @dataclass
@@ -40,6 +42,9 @@ def prepare_sql(
         return Prepared(ok=False, reason=g.reason, guard=g)
 
     warnings: list[str] = []
+    if g.kind in ("select",) and not g.is_metadata and limits.get("allow_global_aggregates", True) \
+            and is_global_aggregate(g.ast) and not has_company_id_predicate(g.ast):
+        return Prepared(ok=True, sql=g.sql, warnings=["Platform-wide aggregate across ALL companies (no company_id filter)."], guard=g)
     if g.kind in ("select",) and not g.is_metadata:
         scoped = {t.lower() for t in company_id_tables} - set(config.company_id_exempt_tables)
         needs = sorted(set(g.tables) & scoped)

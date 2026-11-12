@@ -220,3 +220,31 @@ def has_company_id_predicate(tree: exp.Expression | None) -> bool:
             if is_company_col(node.this) and not any(isinstance(x, exp.Column) for x in node.expressions):
                 return True
     return False
+
+
+def is_global_aggregate(tree: exp.Expression | None) -> bool:
+    """True for a platform-wide statistic: one SELECT over one table whose output is only aggregates
+    (count/sum/min/max/avg ...), optionally grouped by low-cardinality columns (never by an id / company).
+    No joins, CTEs or subqueries, so it cannot return individual rows or per-tenant data."""
+    if not isinstance(tree, exp.Select) or tree.args.get("with") or tree.args.get("joins") or tree.find(exp.Subquery):
+        return False
+    if len(list(tree.find_all(exp.Select))) > 1 or tree.args.get("distinct"):
+        return False
+    group = tree.args.get("group")
+    group_cols = {c.name.lower() for c in group.expressions if isinstance(c, exp.Column)} if group else set()
+    if group and len(group_cols) != len(group.expressions):
+        return False
+    if any(c in ("company_id", "employee_id", "id") or c.endswith("_id") for c in group_cols):
+        return False
+    saw_agg = False
+    for proj in tree.expressions:
+        node = proj.this if isinstance(proj, exp.Alias) else proj
+        if isinstance(node, exp.AggFunc):
+            saw_agg = True
+            if node.find(exp.Window):
+                return False
+        elif isinstance(node, exp.Column) and node.name.lower() in group_cols:
+            continue
+        else:
+            return False
+    return saw_agg
