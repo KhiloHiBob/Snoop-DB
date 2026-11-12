@@ -44,7 +44,7 @@ class PostgresConnector:
             password=resolve_secret(self.cfg, "password"),
             dbname=db,
             connect_timeout=5,
-            application_name="snoop-db",
+            application_name="db-dog",
             options=f"-c default_transaction_read_only=on -c statement_timeout={timeout} "
                     f"-c idle_in_transaction_session_timeout={timeout}",
             autocommit=False,
@@ -176,5 +176,5 @@ class PostgresConnector:
             ts = self._run_internal(database, "SELECT pg_last_xact_replay_timestamp()")[0][0]
             info["replica_replay_timestamp"] = ts.isoformat() if ts else None
         if info["role_has_write_grants"]:
-            info["warning"] = "role has write grants; Snoop-DB still enforces read-only itself"
+            info["warning"] = "role has write grants; db-dog still enforces read-only itself"
         return info

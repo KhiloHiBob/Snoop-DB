@@ -5,11 +5,11 @@ from typing import Any
 import pytest
 import yaml
 
-from snoop_db.config import Config, load_config
-from snoop_db.connectors.base import QueryResult
-from snoop_db.connectors.postgres import PolicyError
-from snoop_db.agent.llm import LLMResponse
-from snoop_db.safety.policy import prepare_sql
+from db_dog.config import Config, load_config
+from db_dog.connectors.base import QueryResult
+from db_dog.connectors.postgres import PolicyError
+from db_dog.agent.llm import LLMResponse
+from db_dog.safety.policy import prepare_sql
 
 CONFIG = {
     "environments": {
@@ -61,7 +61,7 @@ class FakePostgres:
                            list(prepared.warnings))
 
     def health(self, database=None):
-        return {"user": "snoop", "is_replica": False, "session_read_only": True, "role_has_write_grants": False}
+        return {"user": "dbdog", "is_replica": False, "session_read_only": True, "role_has_write_grants": False}
 
 
 class FakeHub:

@@ -1,4 +1,4 @@
-# Snoop-DB example configuration -- placeholders only.
+# db-dog example configuration -- placeholders only.
 #
 # Copy this file to config/local.yaml (git-ignored) and fill in your real hosts, ports and
 # resource names there. Secrets should be referenced with `*_env` keys (the name of an
@@ -35,9 +35,9 @@ environments:
     postgres:
       host: localhost
       port: 55432
-      user: snoop
-      password_env: SNOOP_LOCAL_PG_PASSWORD   # demo default: snoop
-      default_database: snoop_demo
+      user: dbdog
+      password_env: DB_DOG_LOCAL_PG_PASSWORD   # demo default: dbdog
+      default_database: dog_demo
 
   # Template for a tunnelled, production-like environment (every field is a placeholder).
   prod-example:
@@ -52,7 +52,7 @@ environments:
       user: ""
       default_database: your_database
     # Optional extra stores (all read-only, allowlist based):
-    # singlestore: {host: localhost, port: 3306, user: root, password_env: SNOOP_S2_PASSWORD, default_database: ""}
-    # redis:       {url_env: SNOOP_REDIS_URL}
-    # mongo:       {uri_env: SNOOP_MONGO_URI}
+    # singlestore: {host: localhost, port: 3306, user: root, password_env: DB_DOG_S2_PASSWORD, default_database: ""}
+    # redis:       {url_env: DB_DOG_REDIS_URL}
+    # mongo:       {uri_env: DB_DOG_MONGO_URI}
     # opensearch:  {url: "http://localhost:9200"}

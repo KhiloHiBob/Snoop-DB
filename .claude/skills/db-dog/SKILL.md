@@ -1,16 +1,16 @@
 ---
-name: snoop-db
-description: Answer questions about data in any configured database environment (local, staging, sandbox, prod) through the local Snoop-DB read-only agent. Use when the user asks to look up, count, list or describe database tables/rows/keys, or asks which database holds some data.
+name: db-dog
+description: Answer questions about data in any configured database environment (local, staging, sandbox, prod) through the local db-dog read-only agent. Use when the user asks to look up, count, list or describe database tables/rows/keys, or asks which database holds some data.
 ---
 
-# Snoop-DB
+# db-dog
 
-A local, read-only database agent. Start it with `python -m snoop_db` (listens on `127.0.0.1:8000`).
+A local, read-only database agent. Start it with `python -m db_dog` (listens on `127.0.0.1:8137`).
 
 ## Ask a question (the agent writes the SQL)
 
 ```bash
-curl -s localhost:8000/api/chat -H 'content-type: application/json' \
+curl -s localhost:8137/api/chat -H 'content-type: application/json' \
   -d '{"message": "how many active employees per department?", "environment": "auto"}'
 ```
 
@@ -21,8 +21,8 @@ environment was queried** when you answer.
 ## Run one statement yourself (no LLM)
 
 ```bash
-curl -s localhost:8000/api/query -H 'content-type: application/json' \
-  -d '{"environment": "local", "store": "postgres", "database": "snoop_demo", "statement": "SELECT count(*) FROM employees WHERE company_id = 1"}'
+curl -s localhost:8137/api/query -H 'content-type: application/json' \
+  -d '{"environment": "local", "store": "postgres", "database": "dog_demo", "statement": "SELECT count(*) FROM employees WHERE company_id = 1"}'
 ```
 
 ## Rules

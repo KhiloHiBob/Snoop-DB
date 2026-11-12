@@ -1,6 +1,6 @@
 import pytest
 
-from snoop_db.safety.sql_guard import guard_sql, has_company_id_predicate
+from db_dog.safety.sql_guard import guard_sql, has_company_id_predicate
 
 SAFE = [
     "SELECT 1",
@@ -84,7 +84,7 @@ def test_limit_forced_flag():
 
 
 def test_hit_forced_limit_helper():
-    from snoop_db.connectors.base import hit_forced_limit
+    from db_dog.connectors.base import hit_forced_limit
     g = guard_sql("SELECT id FROM employees", max_rows=500)
     assert hit_forced_limit(g, 500) and not hit_forced_limit(g, 499)
     assert not hit_forced_limit(guard_sql("SELECT id FROM employees LIMIT 5"), 5)   # user asked for exactly 5
@@ -99,7 +99,7 @@ def test_select_star_gets_the_smaller_limit():
 
 def test_set_operations_are_wrapped_so_the_limit_applies():
     r = guard_sql("SELECT a FROM t1 UNION ALL SELECT a FROM t2", max_rows=10)
-    assert r.ok and r.sql.endswith("LIMIT 10") and "_snoop_q" in r.sql
+    assert r.ok and r.sql.endswith("LIMIT 10") and "_dbdog_q" in r.sql
 
 
 def test_comments_are_never_forwarded():

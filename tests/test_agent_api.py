@@ -3,8 +3,8 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from snoop_db.agent import Agent
-from snoop_db.app import create_app
+from db_dog.agent import Agent
+from db_dog.app import create_app
 
 from .conftest import FakeHub, ScriptedLLM, final, tool_call
 

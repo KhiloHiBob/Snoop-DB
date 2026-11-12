@@ -91,8 +91,8 @@ def _build_env(name: str, raw: dict[str, Any]) -> EnvConfig:
 def config_path(explicit: str | os.PathLike[str] | None = None) -> Path:
     if explicit:
         return Path(explicit)
-    if os.environ.get("SNOOP_CONFIG"):
-        return Path(os.environ["SNOOP_CONFIG"])
+    if os.environ.get("DB_DOG_CONFIG"):
+        return Path(os.environ["DB_DOG_CONFIG"])
     local = ROOT / "config" / "local.yaml"
     return local if local.exists() else ROOT / "config" / "config.example.yaml"
 

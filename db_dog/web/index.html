@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Snoop-DB</title>
+<title>db-dog</title>
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #667085; --line: #e3e6eb;
@@ -93,7 +93,7 @@
 </head>
 <body>
 <header>
-  <h1>Snoop<span>-DB</span></h1>
+  <h1>DB<span>-Dog</span></h1>
   <label class="toggle">Environment
     <select id="env"><option value="auto">Auto (from question)</option></select>
   </label>
@@ -123,7 +123,7 @@
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
   };
-  let base = store.get('snoop.api', location.protocol === 'file:' ? 'http://127.0.0.1:8000' : '');
+  let base = store.get('dbdog.api', location.protocol === 'file:' ? 'http://127.0.0.1:8137' : '');
   let history = [];
 
   const EXAMPLES = [
@@ -265,7 +265,7 @@
     if (!text || send.disabled) return;
     if (log.querySelector('.empty')) log.replaceChildren();
     log.append(el('div', { class: 'msg-user', text }));
-    const pending = el('div', { class: 'card' }, el('span', { class: 'dots', text: 'Snooping' }));
+    const pending = el('div', { class: 'card' }, el('span', { class: 'dots', text: 'Fetching' }));
     log.append(pending); scroll();
     q.value = ''; q.style.height = ''; send.disabled = true;
     try {
@@ -285,8 +285,8 @@
   q.addEventListener('input', () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; });
   $('clear').addEventListener('click', () => { history = []; showEmpty(); });
   $('api').addEventListener('click', () => {
-    const v = prompt('Snoop-DB API address (empty = same origin)', base);
-    if (v !== null) { base = v.trim().replace(/\/$/, ''); store.set('snoop.api', base); loadEnvs(); }
+    const v = prompt('db-dog API address (empty = same origin)', base);
+    if (v !== null) { base = v.trim().replace(/\/$/, ''); store.set('dbdog.api', base); loadEnvs(); }
   });
 
   async function loadEnvs() {

@@ -12,7 +12,7 @@ LOCAL_KNOWLEDGE_DIR = ROOT / "knowledge_local"   # git-ignored, private notes
 STORE_DOCS = {"singlestore": "singlestore.md", "redis": "redis.md", "mongo": "mongo.md", "opensearch": "opensearch.md"}
 ALWAYS = ["postgres-rules.md", "multi-database.md", "schema-conventions.md", "investigation.md"]
 
-BASE = """You are Snoop-DB, a careful, read-only database agent. You answer questions about data by
+BASE = """You are db-dog, a careful, read-only database agent. You answer questions about data by
 discovering schemas and running read-only queries with the provided tools, then summarising.
 
 Hard rules:

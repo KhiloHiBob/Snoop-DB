@@ -40,7 +40,7 @@ SELECT
   (ARRAY['Engineering','Sales','Support','Finance','People'])[1 + (g % 5)],
   (ARRAY['Associate','Specialist','Lead','Manager'])[1 + (g % 4)],
   40000 + (g * 937) % 60000,
-  DATE '2019-01-01' + (g * 17) % 2400,
+  DATE '2019-01-01' + ((g * 17) % 2400)::int,
   g % 11 <> 0,
   jsonb_build_object('office', (ARRAY['Remote','London','Tel Aviv','Berlin'])[1 + (g % 4)], 'level', 1 + g % 5)
 FROM generate_series(1, 120) AS g;
@@ -48,7 +48,7 @@ FROM generate_series(1, 120) AS g;
 INSERT INTO time_off_requests (company_id, employee_id, policy, start_date, end_date, status)
 SELECT e.company_id, e.id,
   (ARRAY['Vacation','Sick','Parental'])[1 + (e.id % 3)],
-  DATE '2025-01-01' + (e.id * 5) % 300,
-  DATE '2025-01-01' + (e.id * 5) % 300 + 1 + (e.id % 4),
+  DATE '2025-01-01' + ((e.id * 5) % 300)::int,
+  DATE '2025-01-01' + ((e.id * 5) % 300 + 1 + (e.id % 4))::int,
   (ARRAY['approved','pending','declined'])[1 + (e.id % 3)]
 FROM employees e WHERE e.id % 2 = 0;

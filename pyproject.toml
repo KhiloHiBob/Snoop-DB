@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "snoop-db"
+name = "db-dog"
 version = "0.1.0"
 description = "A read-only AI database agent: ask in plain English, get SQL, safety checks and a table back."
 readme = "README.md"
@@ -25,13 +25,13 @@ dependencies = [
 dev = ["pytest>=8.0"]
 
 [project.scripts]
-snoop-db = "snoop_db.__main__:main"
+db-dog = "db_dog.__main__:main"
 
 [tool.setuptools.packages.find]
-include = ["snoop_db*"]
+include = ["db_dog*"]
 
 [tool.setuptools.package-data]
-snoop_db = ["knowledge/*.md", "web/*.html"]
+db_dog = ["knowledge/*.md", "web/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

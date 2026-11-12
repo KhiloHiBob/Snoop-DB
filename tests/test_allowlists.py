@@ -1,10 +1,10 @@
 import pytest
 
-from snoop_db.connectors.base import shape_rows, to_jsonable
-from snoop_db.connectors.mongo import validate_filter, validate_pipeline
-from snoop_db.connectors.opensearch import validate_request
-from snoop_db.connectors.postgres import PolicyError
-from snoop_db.connectors.redis_conn import validate_command
+from db_dog.connectors.base import shape_rows, to_jsonable
+from db_dog.connectors.mongo import validate_filter, validate_pipeline
+from db_dog.connectors.opensearch import validate_request
+from db_dog.connectors.postgres import PolicyError
+from db_dog.connectors.redis_conn import validate_command
 
 
 # ---------------------------------------------------------------- redis

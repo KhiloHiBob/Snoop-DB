@@ -1,8 +1,8 @@
 import pytest
 
-from snoop_db.config import ROOT, load_config
-from snoop_db.envs import resolve_environment
-from snoop_db.safety.policy import prepare_sql
+from db_dog.config import ROOT, load_config
+from db_dog.envs import resolve_environment
+from db_dog.safety.policy import prepare_sql
 
 
 @pytest.mark.parametrize("question,expected", [

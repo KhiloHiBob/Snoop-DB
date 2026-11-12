@@ -52,7 +52,7 @@ def create_app(config: Config | None = None, llm: LLM | None = None, hub: Connec
     llm = llm or AnthropicLLM(config.llm["model"], int(config.llm["max_tokens"]))
     agent = Agent(config, hub, llm)
 
-    app = FastAPI(title="Snoop-DB", version=__version__)
+    app = FastAPI(title="db-dog", version=__version__)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
     app.add_middleware(
         CORSMiddleware,

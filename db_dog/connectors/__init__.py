@@ -7,11 +7,11 @@ from typing import Any
 from ..config import Config
 
 _STORE_CLASSES = {
-    "postgres": ("snoop_db.connectors.postgres", "PostgresConnector"),
-    "singlestore": ("snoop_db.connectors.singlestore", "SingleStoreConnector"),
-    "redis": ("snoop_db.connectors.redis_conn", "RedisConnector"),
-    "mongo": ("snoop_db.connectors.mongo", "MongoConnector"),
-    "opensearch": ("snoop_db.connectors.opensearch", "OpenSearchConnector"),
+    "postgres": ("db_dog.connectors.postgres", "PostgresConnector"),
+    "singlestore": ("db_dog.connectors.singlestore", "SingleStoreConnector"),
+    "redis": ("db_dog.connectors.redis_conn", "RedisConnector"),
+    "mongo": ("db_dog.connectors.mongo", "MongoConnector"),
+    "opensearch": ("db_dog.connectors.opensearch", "OpenSearchConnector"),
 }
 
 

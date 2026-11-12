@@ -68,7 +68,7 @@ class GuardResult:
     selects_star: bool = False
     ast: exp.Expression | None = None
     limit_applied: int | None = None
-    limit_forced: bool = False        # True when Snoop-DB added or lowered the LIMIT (so hitting it means "maybe more")
+    limit_forced: bool = False        # True when db-dog added or lowered the LIMIT (so hitting it means "maybe more")
 
 
 def _reject(reason: str) -> GuardResult:
@@ -118,7 +118,7 @@ def _apply_limit(tree: exp.Expression, max_rows: int, star_rows: int) -> tuple[e
             return tree.limit(cap), cap, True
         return tree.limit(cap), cap, True  # non-literal limit: override
     if isinstance(tree, _set_operation_type()):
-        return exp.select("*").from_(tree.subquery("_snoop_q")).limit(cap), cap, True
+        return exp.select("*").from_(tree.subquery("_dbdog_q")).limit(cap), cap, True
     return tree.limit(cap), cap, True
 
 
