@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..config import ROOT, Config, EnvConfig
+from . import modules
 
 KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 LOCAL_KNOWLEDGE_DIR = ROOT / "knowledge_local"   # git-ignored, private notes
@@ -42,7 +43,7 @@ def knowledge_text(env: EnvConfig) -> str:
     return "\n\n".join(parts)
 
 
-def build_system_prompt(config: Config, env: EnvConfig, rows_visible_to_llm: bool, stores: list[str]) -> str:
+def build_system_prompt(config: Config, env: EnvConfig, rows_visible_to_llm: bool, stores: list[str], question: str = "") -> str:
     kind = "PRODUCTION (view-only, company_id predicate required)" if env.production else "non-production"
     visibility = (
         "Result rows ARE visible to you." if rows_visible_to_llm
@@ -53,4 +54,7 @@ def build_system_prompt(config: Config, env: EnvConfig, rows_visible_to_llm: boo
         f"Configured stores: {', '.join(stores) or 'none'}. {visibility}\n"
         f"Default row limit {config.limits['max_rows']} (50 for SELECT *)."
     )
-    return f"{BASE}\n## Context\n{ctx}\n\n## Knowledge\n{knowledge_text(env)}"
+    mods = modules.index_text()
+    pre = modules.preload_text(question) if question else ""
+    return (f"{BASE}\n## Context\n{ctx}\n\n## Knowledge\n{knowledge_text(env)}"
+            + (f"\n\n{mods}" if mods else "") + (f"\n\n## Preloaded module skills\n{pre}" if pre else ""))

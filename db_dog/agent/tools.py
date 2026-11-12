@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..config import Config, EnvConfig
+from . import modules
 from ..connectors import ConnectorHub
 from ..connectors.postgres import PolicyError
 from ..preflight import PreflightError
@@ -48,6 +49,9 @@ def tool_schemas(stores: list[str]) -> list[dict[str, Any]]:
             "input_schema": obj({"sql": s, "database_like": {**s, "description": "only databases containing this text"},
                                  "title": s}, ["sql"]),
         })
+    if modules.available():
+        tools.append({"name": "module_skill", "description": "Load the DB skill of a Bob module (tables, columns, relationships, recipes) by name.",
+                      "input_schema": obj({"module": {**s, "enum": modules.available()}}, ["module"])})
     if "redis" in stores:
         tools.append({"name": "redis_read", "description": "Run ONE read-only Redis command (SCAN, not KEYS).",
                       "input_schema": obj({"command": s, "title": s}, ["command"])})
@@ -138,6 +142,8 @@ class ToolRuntime:
             res = self.hub.get(self.env.name, store).query(a.get("database"), a["sql"]).to_dict()
             self._record("answer", a.get("title") or "Result", store, a.get("database"), res)
             return self._llm_view(res)
+        if name == "module_skill":
+            return {"skill": modules.load(a["module"])}
         if name == "fan_out_query":
             return self._fan_out(a)
         if name == "redis_read":

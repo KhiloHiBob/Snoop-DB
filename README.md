@@ -66,3 +66,10 @@ Implement a connector in `db_dog/connectors/` (an allowlist validator plus `quer
 ## Tests
 
 `.venv/bin/python -m pytest` (no database or API key needed).
+
+## Bob module skills (DBA knowledge)
+
+`python tools/crop_modules.py ~/IdeaProjects/hibob` crops each monolith module's `AGENTS.md` and DB docs into
+`knowledge_local/modules/<module>.md` (git-ignored, Bob-internal). The agent lists the modules in its prompt,
+preloads the one a question mentions (e.g. timeoff, attendance, site) and can load any other with the
+`module_skill` tool. Files starting with `<!-- curated` (hand-written, e.g. timeoff) are never overwritten.
