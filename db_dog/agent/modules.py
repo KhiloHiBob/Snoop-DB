@@ -11,7 +11,8 @@ from pathlib import Path
 
 from ..config import ROOT
 
-MODULES_DIR = ROOT / "knowledge_local" / "modules"
+MODULES_DIR = ROOT / "knowledge_local" / "modules"      # cropped from AGENTS.md / .doc (tools/crop_modules.py)
+MODELS_DIR = ROOT / "knowledge_local" / "models"        # tables per module, scanned from the jOOQ DAOs (tools/scan_dao_tables.py)
 MAX_MODULE_CHARS = 60_000
 MAX_PRELOAD = 2
 
@@ -32,7 +33,9 @@ ALIASES: dict[str, str] = {
 
 
 def available() -> list[str]:
-    return sorted(p.stem for p in MODULES_DIR.glob("*.md")) if MODULES_DIR.is_dir() else []
+    docs = {p.stem for p in MODULES_DIR.glob("*.md")} if MODULES_DIR.is_dir() else set()
+    models = {p.name for p in MODELS_DIR.iterdir() if (p / f"{p.name}.md").is_file() and p.name != "_unmapped"} if MODELS_DIR.is_dir() else set()
+    return sorted(docs | models)
 
 
 def _words(slug: str) -> list[str]:
@@ -51,10 +54,10 @@ def select(text: str, limit: int = MAX_PRELOAD) -> list[str]:
 
 
 def load(slug: str) -> str:
-    path = MODULES_DIR / f"{slug}.md"
-    if slug not in available() or not path.is_file():
+    if slug not in available():
         raise KeyError(f"unknown module '{slug}'. Available: {', '.join(available()) or 'none'}")
-    return path.read_text()[:MAX_MODULE_CHARS]
+    parts = [p.read_text() for p in (MODELS_DIR / slug / f"{slug}.md", MODULES_DIR / f"{slug}.md") if p.is_file()]
+    return "\n\n".join(parts)[:MAX_MODULE_CHARS]
 
 
 def index_text() -> str:

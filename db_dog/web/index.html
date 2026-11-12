@@ -134,6 +134,11 @@
   @keyframes bounce { 0% { transform: translate(0, 0); } 25% { transform: translate(-40px, -22px); } 50% { transform: translate(-40px, 0); } 75% { transform: translate(-90px, -18px); } 100% { transform: translate(-190px, 0); } }
   @keyframes step { from { transform: rotate(-25deg); } to { transform: rotate(25deg); } }
   @media (prefers-reduced-motion: reduce) { .play *, .play svg, .play .ball { animation: none !important; } }
+  .msg-user.editing { width: min(640px, 92%); }
+  .edit-box { width: 100%; resize: none; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 10px; font: inherit; }
+  .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  .msg-user.editing .edit { opacity: 1; }
+  .msg-user.editing .edit.save { font-weight: 700; }
   @keyframes pulse { 50% { opacity: .3; } }
   @media (max-width: 760px) { #threads { width: 150px; } }
   @media (prefers-reduced-motion: reduce) { .dog *, .dog-wrap { animation: none !important; } }
@@ -344,7 +349,7 @@
   function setStore(ok) { storeOk = ok; $('storewarn').hidden = ok; }
   function userEl(t, turn) {
     return el('div', { class: 'msg-user' }, el('span', { text: turn.text }),
-      el('button', { class: 'edit', type: 'button', title: 'Edit this message (removes it and everything after)', text: '✎ Edit', onclick: () => edit(t, turn) }));
+      el('button', { class: 'edit', type: 'button', title: 'Edit this message and resend (replaces everything after it)', text: '✎ Edit', onclick: () => edit(t, turn) }));
   }
   const noteCard = (text, err, extra) => el('div', { class: 'card' }, el('div', { class: 'note' + (err ? ' err' : ''), text }), extra || null);
   function restore(saved) {
@@ -382,12 +387,30 @@
     $('top').classList.toggle('busy', active.busy);
   }
   function stop(t) { if (t.ctrl) t.ctrl.abort(); }
-  function edit(t, turn) {   // put the message back in the box; drop it and everything after it
-    if (t.busy) stop(t);
-    const i = t.turns.indexOf(turn); if (i < 0) return;
-    t.turns.splice(i).forEach((x) => { x.userEl.remove(); x.cardEl.remove(); });
-    if (!t.turns.length) { t.named = false; t.title = 'New thread'; showEmpty(t); }
-    renderList(); persist(t); q.value = turn.text; q.dispatchEvent(new Event('input')); q.focus();
+  function edit(t, turn) {   // edit in place, inside the message bubble; saving re-asks from this point
+    if (turn.userEl.querySelector('textarea')) return;
+    const box = el('textarea', { class: 'edit-box', rows: '2' }); box.value = turn.text;
+    const fit = () => { box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight, 220) + 'px'; };
+    box.addEventListener('input', fit);
+    const done = () => { turn.userEl.replaceWith(userEl(t, turn)); };
+    const save = async () => {
+      const text = box.value.trim(); if (!text) return;
+      if (text === turn.text && turn.kind) { done(); return; }
+      if (t.busy) { stop(t); while (t.busy) await new Promise((r) => setTimeout(r, 20)); }
+      const i = t.turns.indexOf(turn); if (i < 0) return;
+      t.turns.splice(i).forEach((x) => { x.userEl.remove(); x.cardEl.remove(); });
+      if (!t.turns.length) t.named = false;
+      ask(text);
+    };
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(); }
+      if (e.key === 'Escape') done();
+    });
+    const bubble = el('div', { class: 'msg-user editing' }, box,
+      el('div', { class: 'edit-actions' },
+        el('button', { class: 'edit', type: 'button', text: 'Cancel', onclick: done }),
+        el('button', { class: 'edit save', type: 'button', text: 'Save & resend', onclick: save })));
+    turn.userEl.replaceWith(bubble); turn.userEl = bubble; fit(); box.focus();
   }
   function remove(t) {
     stop(t); t.removed = true;
@@ -398,6 +421,7 @@
 
   async function ask(text) {
     const t = active;
+    const fromBox = text === undefined;   // resent/edited text must not wipe a draft in the bottom box
     text = (text ?? q.value).trim();
     if (!text || t.busy) return;
     if (t.el.querySelector('.empty')) t.el.replaceChildren();
@@ -410,7 +434,7 @@
       el('button', { class: 'btn', type: 'button', text: '■ Stop', onclick: () => stop(t) }), play);
     turn.cardEl = pending; t.turns.push(turn);
     t.el.append(turn.userEl, pending); if (t === active) scroll();
-    q.value = ''; q.style.height = '';
+    if (fromBox) { q.value = ''; q.style.height = ''; }
     t.busy = true; t.state = 'running'; t.ctrl = new AbortController(); renderList(); controls();
     try {
       const data = await api('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: t.ctrl.signal,

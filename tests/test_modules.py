@@ -10,6 +10,7 @@ def mods(tmp_path, monkeypatch):
     (tmp_path / "timeoff.md").write_text("# timeoff skill: timeoff_requests")
     (tmp_path / "employee.md").write_text("# employee skill")
     monkeypatch.setattr(modules, "MODULES_DIR", tmp_path)
+    monkeypatch.setattr(modules, "MODELS_DIR", tmp_path / "no-models")
     return tmp_path
 
 
@@ -31,4 +32,15 @@ def test_load_and_unknown(mods):
 
 def test_index_empty_without_modules(tmp_path, monkeypatch):
     monkeypatch.setattr(modules, "MODULES_DIR", tmp_path / "missing")
+    monkeypatch.setattr(modules, "MODELS_DIR", tmp_path / "missing2")
     assert modules.index_text() == "" and modules.available() == []
+
+
+def test_models_dir_is_merged(mods, monkeypatch):
+    models = mods / "models"
+    (models / "payroll").mkdir(parents=True)
+    (models / "payroll" / "payroll.md").write_text("# payroll tables: payroll_runs")
+    monkeypatch.setattr(modules, "MODELS_DIR", models)
+    assert "payroll" in modules.available()
+    assert "payroll_runs" in modules.load("payroll")
+    assert "timeoff_requests" in modules.load("timeoff")   # modules/ doc still loads without a models entry
