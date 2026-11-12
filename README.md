@@ -13,6 +13,8 @@ environment stated.
 
 ## Quick start
 
+`./dbdog` starts everything (venv, thread store, server, browser); `./dbdog stop` stops it.
+
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 docker compose up -d                      # demo Postgres on 127.0.0.1:55432
