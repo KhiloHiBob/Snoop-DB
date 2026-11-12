@@ -88,35 +88,27 @@
   #send { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 0 20px; height: 46px; font-weight: 600; cursor: pointer; }
   #send:disabled { opacity: .5; cursor: progress; }
   .hint { max-width: 1100px; margin: 6px auto 0; color: var(--muted); font-size: 12px; }
-  .dog { width: 54px; height: 40px; flex: none; overflow: visible; }
+  .compose { display: flex; align-items: flex-end; gap: 12px; max-width: 1100px; margin: 0 auto; }
+  .compose form { flex: 1; min-width: 0; margin: 0; max-width: none; }
+  .dog { width: 96px; height: 70px; flex: none; overflow: visible; }
   .dog .fur { fill: #c98a4b; } .dog .ear { fill: #8a5a2b; } .dog .ink { fill: #1b1f24; } .dog .tongue { fill: #f06292; }
   .dog .tail { transform-origin: 8px 24px; animation: wag .45s ease-in-out infinite alternate; }
   .dog .eye { transform-origin: center; transform-box: fill-box; animation: blink 4s infinite; }
   .dog .tongue { transform-origin: 40px 28px; animation: pant 1.2s ease-in-out infinite; }
   .dog-wrap { display: inline-flex; animation: bob 2.4s ease-in-out infinite; }
-  header.busy .dog-wrap { animation: run .35s ease-in-out infinite; }
-  header.busy .dog .tail { animation-duration: .15s; }
+  footer.busy .dog-wrap { animation: run .35s ease-in-out infinite; }
+  footer.busy .dog .tail { animation-duration: .15s; }
   @keyframes wag { from { transform: rotate(-22deg); } to { transform: rotate(28deg); } }
   @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
   @keyframes pant { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.35); } }
   @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
   @keyframes run { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(3px, -4px) rotate(-3deg); } }
   @media (prefers-reduced-motion: reduce) { .dog *, .dog-wrap { animation: none !important; } }
-  @media (max-width: 600px) { header { padding: 10px 16px; } main { padding: 12px 16px; } footer { padding: 8px 16px 12px; } .msg-user { max-width: 92%; } }
+  @media (max-width: 600px) { .dog { width: 64px; height: 47px; } header { padding: 10px 16px; } main { padding: 12px 16px; } footer { padding: 8px 16px 12px; } .msg-user { max-width: 92%; } }
 </style>
 </head>
 <body>
-<header id="top">
-  <span class="dog-wrap" aria-hidden="true"><svg class="dog" viewBox="0 0 60 44">
-    <path class="fur tail" d="M9 24 Q-2 14 3 6 Q8 14 14 22Z"/>
-    <rect class="fur" x="8" y="22" width="30" height="14" rx="7"/>
-    <rect class="fur" x="12" y="32" width="5" height="10" rx="2.5"/><rect class="fur" x="30" y="32" width="5" height="10" rx="2.5"/>
-    <circle class="fur" cx="42" cy="18" r="11"/><ellipse class="fur" cx="52" cy="22" rx="7" ry="5"/>
-    <path class="ear" d="M34 10 Q30 2 37 5 Q40 8 40 12Z"/><path class="ear" d="M46 8 Q52 1 52 9 Q50 12 47 12Z"/>
-    <circle class="ink" cx="58" cy="21" r="2"/>
-    <ellipse class="ink eye" cx="44" cy="16" rx="1.8" ry="2.2"/>
-    <path class="tongue" d="M50 26 q2 7 4 0Z"/>
-  </svg></span>
+<header>
   <h1>DB<span>-Dog</span></h1>
   <label class="toggle">Environment
     <select id="env"><option value="auto">Auto (from question)</option></select>
@@ -131,11 +123,23 @@
 
 <main id="main"><div class="wrap" id="log"></div></main>
 
-<footer>
+<footer id="top">
+  <div class="compose">
+  <span class="dog-wrap" aria-hidden="true"><svg class="dog"  viewBox="0 0 60 44">
+    <path class="fur tail" d="M9 24 Q-2 14 3 6 Q8 14 14 22Z"/>
+    <rect class="fur" x="8" y="22" width="30" height="14" rx="7"/>
+    <rect class="fur" x="12" y="32" width="5" height="10" rx="2.5"/><rect class="fur" x="30" y="32" width="5" height="10" rx="2.5"/>
+    <circle class="fur" cx="42" cy="18" r="11"/><ellipse class="fur" cx="52" cy="22" rx="7" ry="5"/>
+    <path class="ear" d="M34 10 Q30 2 37 5 Q40 8 40 12Z"/><path class="ear" d="M46 8 Q52 1 52 9 Q50 12 47 12Z"/>
+    <circle class="ink" cx="58" cy="21" r="2"/>
+    <ellipse class="ink eye" cx="44" cy="16" rx="1.8" ry="2.2"/>
+    <path class="tongue" d="M50 26 q2 7 4 0Z"/>
+  </svg></span>
   <form id="form">
     <textarea id="q" rows="1" placeholder="Ask about any table or data… e.g. “list tables that have a company_id column”" autofocus></textarea>
     <button id="send" type="submit">Ask</button>
   </form>
+  </div>
   <div class="hint">Read-only in every environment. Enter to send, Shift+Enter for a new line. The environment used is always shown on the answer.</div>
 </footer>
 
