@@ -16,3 +16,23 @@ services:
       test: ["CMD-SHELL", "pg_isready -U dbdog -d dog_demo"]
       interval: 5s
       retries: 10
+
+  # Persists chat threads so they survive page refreshes (db-dog reads DB_DOG_THREADS_DSN,
+  # default postgresql://dbdog:dbdog@127.0.0.1:55433/dog_threads). Data lives in the named volume.
+  threads-db:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:55433:5432"
+    environment:
+      POSTGRES_USER: dbdog
+      POSTGRES_PASSWORD: dbdog
+      POSTGRES_DB: dog_threads
+    volumes:
+      - threads-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbdog -d dog_threads"]
+      interval: 5s
+      retries: 10
+
+volumes:
+  threads-data:
