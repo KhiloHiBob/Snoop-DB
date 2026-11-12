@@ -113,6 +113,11 @@ def create_app(config: Config | None = None, llm: LLM | None = None, hub: Connec
             raise HTTPException(503, str(e)) from e
         except KeyError as e:
             raise HTTPException(400, str(e.args[0])) from e
+        except HTTPException:
+            raise
+        except Exception as e:  # database-side errors (bad column, type mismatch, timeout): explain, don't 500
+            first = (str(e).splitlines() or [""])[0][:300]
+            raise HTTPException(400, f"database error: {type(e).__name__}: {first}") from e
         env = config.environments[res.env]
         return {"environment": env.name, "production": env.production, "store": req.store,
                 "database": req.database, **out.to_dict()}

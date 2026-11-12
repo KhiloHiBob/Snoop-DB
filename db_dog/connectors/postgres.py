@@ -26,6 +26,7 @@ class PostgresConnector:
         self.env = env
         self.cfg = env.stores["postgres"]
         self._company_tables: dict[str, set[str]] = {}
+        self._big_tables: dict[str, dict[str, int]] = {}
 
     # ------------------------------------------------------------------ connection
     def _connect(self, database: str | None = None):
@@ -105,6 +106,10 @@ class PostgresConnector:
             ],
             "indexes": [{"name": i[0], "definition": i[1]} for i in idx],
             "has_company_id": any(c[0] == "company_id" for c in cols),
+            "approx_rows": (approx := self.big_tables(database).get(table.lower())) or "below the big-table threshold",
+            "is_big_table": approx is not None,
+            **({"warning": "BIG TABLE: always filter by company_id; ask the user for the company, never guess"}
+               if approx is not None else {}),
         }
 
     def company_id_tables(self, database: str) -> set[str]:
@@ -119,8 +124,22 @@ class PostgresConnector:
         return self._company_tables[database]
 
     # ------------------------------------------------------------------ querying
+    def big_tables(self, database: str) -> dict[str, int]:
+        """Tables whose planner row estimate is at or above ``limits.big_table_rows``."""
+        if database not in self._big_tables:
+            threshold = int(self.config.limits["big_table_rows"])
+            rows = self._run_internal(
+                database,
+                "SELECT c.relname, c.reltuples::bigint FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+                "WHERE c.relkind IN ('r','p') AND c.reltuples >= %s AND n.nspname <> ALL(%s)",
+                (threshold, list(_SYSTEM_SCHEMAS)),
+            )
+            self._big_tables[database] = {r[0].lower(): int(r[1]) for r in rows}
+        return self._big_tables[database]
+
     def prepare(self, database: str, sql: str) -> Prepared:
-        return prepare_sql(sql, self.dialect, self.config, self.env, self.company_id_tables(database))
+        return prepare_sql(sql, self.dialect, self.config, self.env, self.company_id_tables(database),
+                           self.big_tables(database))
 
     def query(self, database: str | None, sql: str) -> QueryResult:
         db = database or self.cfg.get("default_database")

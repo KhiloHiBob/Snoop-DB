@@ -3,12 +3,14 @@
   * ``company_id`` first: a query touching a table that has a ``company_id`` column must filter it.
     Enforced for environments with ``company_id_enforced``, otherwise reported as a warning.
   * Tiered LIMIT: ``max_rows`` normally, ``star_rows`` for ``SELECT *``.
+  * Big tables (``limits.big_table_rows``, default 100k): a company_id predicate is ALWAYS required, in
+    every environment, and the agent must ask the user for the company instead of guessing.
   * Schema / metadata queries are exempt from the company_id rule.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 
 from ..config import Config, EnvConfig
@@ -30,6 +32,7 @@ def prepare_sql(
     config: Config,
     env: EnvConfig,
     company_id_tables: Iterable[str] = (),
+    big_tables: Mapping[str, int] | None = None,
 ) -> Prepared:
     limits = config.limits
     g = guard_sql(sql, dialect, int(limits["max_rows"]), int(limits["star_rows"]))
@@ -40,6 +43,19 @@ def prepare_sql(
     if g.kind in ("select",) and not g.is_metadata:
         scoped = {t.lower() for t in company_id_tables} - set(config.company_id_exempt_tables)
         needs = sorted(set(g.tables) & scoped)
+        # Big tables: ALWAYS require a company_id filter, in every environment (never scan them blind).
+        big = {t.lower(): n for t, n in (big_tables or {}).items()}
+        big_needs = sorted(t for t in needs if t in big)
+        if big_needs and not has_company_id_predicate(g.ast):
+            sizes = ", ".join(f"{t} (~{big[t]:,} rows)" for t in big_needs)
+            return Prepared(
+                ok=False,
+                reason=(
+                    f"big table(s) {sizes} must be queried with a `company_id = <value>` predicate in every "
+                    "environment. Do NOT guess a company id: ask the user which company to use, then retry."
+                ),
+                guard=g,
+            )
         if needs and not has_company_id_predicate(g.ast):
             msg = (
                 f"table(s) {', '.join(needs)} have a company_id column but the query has no "

@@ -195,3 +195,51 @@ def test_cors_allows_local_pages_only(client):
                                                "access-control-request-headers": "content-type"})
     assert ok.headers.get("access-control-allow-origin") == "http://localhost:8000"
     assert "access-control-allow-origin" not in bad.headers
+
+
+# ---------------------------------------------------------------- big tables + fan-out
+def test_agent_is_told_to_ask_for_the_company_on_big_tables(config):
+    agent, hub, llm = make_agent(config, [
+        tool_call("run_sql", {"database": "demo", "sql": "SELECT id FROM audit_log ORDER BY id DESC"}), final("Which company?")])
+    out = agent.run("show me the audit log")
+    [payload] = tool_results(llm)
+    assert "ask the user" in payload["error"] and out["steps"][0]["status"] == "rejected"
+    assert hub.conns["local"].queries == []                      # never reached the database
+    assert "ASK for it" in llm.calls[0]["system"] and "Which company id should I use" in llm.calls[0]["system"]
+
+
+def test_fan_out_over_catalogs_searches_every_database(config, monkeypatch):
+    agent, hub, llm = make_agent(config, [
+        tool_call("fan_out_query", {"sql": "SELECT table_name FROM information_schema.tables"}), final("done")])
+    conn = hub.get("local", "postgres")
+    names = [f"db{i:03d}" for i in range(60)]
+    conn.list_databases = lambda: names
+    out = agent.run("where is table x")
+    assert "queried 60 database(s)" in " ".join(out["results"][0]["notes"])
+
+
+def test_fan_out_over_data_is_capped_and_the_agent_is_told(config):
+    agent, hub, llm = make_agent(config, [
+        tool_call("fan_out_query", {"sql": "SELECT id FROM employees WHERE company_id = 1"}), final("done")])
+    hub.get("local", "postgres").list_databases = lambda: [f"db{i:03d}" for i in range(60)]
+    agent.run("count employees everywhere")
+    [payload] = tool_results(llm)
+    assert any("ONLY the first 25 of 60" in n for n in payload["notes"])
+
+
+def test_empty_fan_out_is_not_shown_as_a_table(config):
+    agent, hub, llm = make_agent(config, [
+        tool_call("fan_out_query", {"sql": "SELECT 1 AS x FROM employees WHERE company_id = 1"}), final("none")])
+    conn = hub.get("local", "postgres")
+    conn.list_databases = lambda: []
+    assert agent.run("find it")["results"] == []
+
+
+def test_api_query_database_errors_are_400_not_500(config):
+    hub = FakeHub(config)
+    conn = hub.get("local", "postgres")
+    def boom(database, sql): raise RuntimeError("operator does not exist: character varying = integer\nLINE 1")
+    conn.query = boom
+    c = TestClient(create_app(config, llm=ScriptedLLM([]), hub=hub))
+    r = c.post("/api/query", json={"environment": "local", "database": "demo", "statement": "SELECT 1"})
+    assert r.status_code == 400 and "operator does not exist" in r.json()["detail"] and "LINE 1" not in r.json()["detail"]

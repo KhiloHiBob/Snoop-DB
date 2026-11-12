@@ -91,10 +91,20 @@ class SingleStoreConnector:
         )
         return {r[0].lower() for r in rows}
 
+    def big_tables(self, database: str) -> dict[str, int]:
+        rows = self._internal(
+            database,
+            "SELECT table_name, table_rows FROM information_schema.tables "
+            "WHERE table_schema = %s AND table_rows >= %s",
+            (database, int(self.config.limits["big_table_rows"])),
+        )
+        return {r[0].lower(): int(r[1]) for r in rows}
+
     def query(self, database: str | None, sql: str) -> QueryResult:
         db = database or self.cfg.get("default_database") or None
         company_tables = self.company_id_tables(db) if db else set()
-        prepared = prepare_sql(sql, self.dialect, self.config, self.env, company_tables)
+        big = self.big_tables(db) if db else {}
+        prepared = prepare_sql(sql, self.dialect, self.config, self.env, company_tables, big)
         if not prepared.ok:
             raise PolicyError(prepared.reason)
         lim = self.config.limits

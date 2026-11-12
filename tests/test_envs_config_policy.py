@@ -79,3 +79,50 @@ def test_exempt_tables_can_be_configured(config):
 def test_guard_rejections_pass_through_policy(config):
     r = prepare_sql("DELETE FROM employees", "postgres", config, config.environments["local"], set())
     assert not r.ok
+
+
+# ---------------------------------------------------------------- big tables
+BIG = {"audit_log": 5_000_000}
+
+
+def test_big_table_needs_company_id_in_every_environment(config):
+    for env in ("local", "staging", "sandbox", "prod"):
+        r = prepare_sql("SELECT id FROM audit_log ORDER BY id DESC", "postgres", config,
+                        config.environments[env], {"audit_log"}, BIG)
+        assert not r.ok, env
+        assert "ask the user" in r.reason and "5,000,000" in r.reason
+
+
+def test_big_table_with_company_id_is_allowed(config):
+    r = prepare_sql("SELECT id FROM audit_log WHERE company_id = 7 ORDER BY id DESC", "postgres", config,
+                    config.environments["local"], {"audit_log"}, BIG)
+    assert r.ok
+
+
+def test_counting_a_big_table_blind_is_rejected(config):
+    r = prepare_sql("SELECT count(*) FROM audit_log", "postgres", config, config.environments["local"], {"audit_log"}, BIG)
+    assert not r.ok
+
+
+def test_small_tenant_table_still_only_warns_on_local(config):
+    r = prepare_sql("SELECT id FROM employees", "postgres", config, config.environments["local"],
+                    {"employees", "audit_log"}, BIG)
+    assert r.ok and r.warnings
+
+
+def test_big_table_metadata_queries_are_exempt(config):
+    r = prepare_sql("SELECT column_name FROM information_schema.columns WHERE table_name = 'audit_log'",
+                    "postgres", config, config.environments["local"], {"audit_log"}, BIG)
+    assert r.ok
+
+
+def test_big_table_join_still_requires_the_filter(config):
+    r = prepare_sql("SELECT e.id FROM employees e JOIN audit_log a ON a.employee_id = e.id", "postgres", config,
+                    config.environments["local"], {"employees", "audit_log"}, BIG)
+    assert not r.ok
+
+
+def test_exempt_tables_bypass_the_big_table_rule(config):
+    config.company_id_exempt_tables = ["audit_log"]
+    assert prepare_sql("SELECT id FROM audit_log", "postgres", config, config.environments["local"],
+                       {"audit_log"}, BIG).ok

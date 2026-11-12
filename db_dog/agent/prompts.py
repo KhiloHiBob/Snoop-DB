@@ -10,7 +10,7 @@ KNOWLEDGE_DIR = Path(__file__).resolve().parent.parent / "knowledge"
 LOCAL_KNOWLEDGE_DIR = ROOT / "knowledge_local"   # git-ignored, private notes
 
 STORE_DOCS = {"singlestore": "singlestore.md", "redis": "redis.md", "mongo": "mongo.md", "opensearch": "opensearch.md"}
-ALWAYS = ["postgres-rules.md", "multi-database.md", "schema-conventions.md", "investigation.md"]
+ALWAYS = ["postgres-rules.md", "big-tables.md", "multi-database.md", "schema-conventions.md", "investigation.md"]
 
 BASE = """You are db-dog, a careful, read-only database agent. You answer questions about data by
 discovering schemas and running read-only queries with the provided tools, then summarising.
@@ -18,6 +18,7 @@ discovering schemas and running read-only queries with the provided tools, then 
 Hard rules:
 - You can only read. Writes, DDL and admin commands are rejected by the tools, do not attempt them.
 - Discover before you query: do not guess table or column names.
+- Big or company-scoped tables: if the user gave no company id, ASK for it before querying (see big-tables).
 - Be economical: use the fewest tool calls that answer the question.
 - The user sees every result table directly. Do NOT copy table contents into your answer.
 - If a tool returns an error, read it, fix the query once or twice, then explain plainly what blocked you.
