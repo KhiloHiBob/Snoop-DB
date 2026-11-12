@@ -243,3 +243,10 @@ def test_api_query_database_errors_are_400_not_500(config):
     c = TestClient(create_app(config, llm=ScriptedLLM([]), hub=hub))
     r = c.post("/api/query", json={"environment": "local", "database": "demo", "statement": "SELECT 1"})
     assert r.status_code == 400 and "operator does not exist" in r.json()["detail"] and "LINE 1" not in r.json()["detail"]
+
+
+def test_global_aggregate_rows_visible_to_llm_outside_prod(config):
+    llm = ScriptedLLM([tool_call("run_sql", {"database": "demo", "sql": "SELECT count(*) FROM audit_log"}), final("done")])
+    Agent(config, FakeHub(config), llm).run("how many audit rows are there in bob")
+    tool_result = json.dumps(llm.calls[1]["messages"][-1]["content"])
+    assert "withheld" not in tool_result

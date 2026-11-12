@@ -93,7 +93,8 @@ class ToolRuntime:
         view = {"columns": res["columns"], "row_count": res["row_count"], "truncated": res["truncated"]}
         if res.get("notes"):
             view["notes"] = res["notes"]
-        if self.rows_visible_to_llm:
+        aggregate = any(str(n).startswith("Platform-wide aggregate") for n in res.get("notes") or [])
+        if self.rows_visible_to_llm or (aggregate and not self.env.production):   # aggregates hold no personal data
             view["rows"] = res["rows"][:LLM_ROW_PREVIEW]
             if res["row_count"] > LLM_ROW_PREVIEW:
                 view["note"] = f"only the first {LLM_ROW_PREVIEW} rows are shown to you"

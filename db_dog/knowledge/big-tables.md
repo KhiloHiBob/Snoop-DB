@@ -19,3 +19,10 @@ Large tables (millions of rows: events, audit logs, history, assignments) and an
 6. Counting a big table without a company filter is also a full scan: do not `count(*)` it. If the user
    wants a size, use `approx_rows` from `describe_table` and say it is an estimate.
 7. Catalog queries (`information_schema`, `pg_catalog`) are cheap and exempt, use them freely to find tables.
+8. EXCEPTION, platform-wide questions ("how many employees are there in Bob", "total number of companies"):
+   the user wants a number across ALL companies, so do NOT ask for a company id. Run a pure aggregate on one
+   table with no company filter, e.g. `SELECT count(*) AS employees FROM employee`. The guard allows this
+   (single table, aggregates only, optional GROUP BY on a low-cardinality column such as `status`, never by
+   company/employee/id). Say the number is platform-wide, and mention what it includes (e.g. all lifecycle
+   statuses) or add a `GROUP BY status` breakdown. Never return per-company or per-employee rows this way.
+   Never answer from `approx_rows` when a real count is possible.

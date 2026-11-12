@@ -99,8 +99,8 @@ def test_big_table_with_company_id_is_allowed(config):
     assert r.ok
 
 
-def test_counting_a_big_table_blind_is_rejected(config):
-    r = prepare_sql("SELECT count(*) FROM audit_log", "postgres", config, config.environments["local"], {"audit_log"}, BIG)
+def test_row_level_blind_read_of_a_big_table_is_rejected(config):
+    r = prepare_sql("SELECT id FROM audit_log ORDER BY id", "postgres", config, config.environments["local"], {"audit_log"}, BIG)
     assert not r.ok
 
 
@@ -126,3 +126,29 @@ def test_exempt_tables_bypass_the_big_table_rule(config):
     config.company_id_exempt_tables = ["audit_log"]
     assert prepare_sql("SELECT id FROM audit_log", "postgres", config, config.environments["local"],
                        {"audit_log"}, BIG).ok
+
+
+def test_global_aggregate_allowed_without_company_id(config):
+    from db_dog.safety.policy import prepare_sql
+    env = config.environments["prod"]
+    ok = prepare_sql("SELECT count(*) FROM audit_log", "postgres", config, env, {"audit_log"}, {"audit_log": 5_000_000})
+    assert ok.ok and any("Platform-wide" in w for w in ok.warnings)
+    grouped = prepare_sql("SELECT status, count(*) AS n FROM audit_log GROUP BY status", "postgres", config, env, {"audit_log"}, {"audit_log": 5_000_000})
+    assert grouped.ok
+
+
+def test_global_aggregate_does_not_open_row_or_tenant_access(config):
+    from db_dog.safety.policy import prepare_sql
+    env = config.environments["prod"]
+    for sql in ["SELECT * FROM audit_log",
+                "SELECT company_id, count(*) FROM audit_log GROUP BY company_id",
+                "SELECT employee_id, count(*) FROM audit_log GROUP BY employee_id",
+                "SELECT count(*), employee_id FROM audit_log",
+                "SELECT count(*) FROM audit_log a JOIN employees e ON e.id = a.employee_id"]:
+        assert not prepare_sql(sql, "postgres", config, env, {"audit_log", "employees"}, {"audit_log": 5_000_000}).ok, sql
+
+
+def test_global_aggregate_can_be_switched_off(config):
+    from db_dog.safety.policy import prepare_sql
+    config.limits["allow_global_aggregates"] = False
+    assert not prepare_sql("SELECT count(*) FROM audit_log", "postgres", config, config.environments["local"], {"audit_log"}, {"audit_log": 5_000_000}).ok
