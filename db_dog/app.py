@@ -16,13 +16,14 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
-from .agent import Agent, AnthropicLLM
-from .agent.llm import LLM, LLMUnavailable
+from .agent import Agent
+from .agent.llm import LLM, LLMUnavailable, make_llm
 from .config import Config, load_config
 from .connectors import ConnectorHub
 from .connectors.postgres import PolicyError
 from .envs import resolve_environment
 from .preflight import PreflightError
+from .threads import ID_RE, ThreadStore, ThreadStoreUnavailable
 
 WEB_DIR = Path(__file__).resolve().parent / "web"
 
@@ -46,11 +47,18 @@ class QueryRequest(BaseModel):
     statement: str = Field(min_length=1, max_length=20000)
 
 
-def create_app(config: Config | None = None, llm: LLM | None = None, hub: ConnectorHub | None = None) -> FastAPI:
+class ThreadBody(BaseModel):
+    title: str = Field(max_length=200)
+    turns: list[dict[str, Any]] = Field(default=[], max_length=200)
+
+
+def create_app(config: Config | None = None, llm: LLM | None = None, hub: ConnectorHub | None = None,
+               threads: ThreadStore | None = None) -> FastAPI:
     config = config or load_config()
     hub = hub or ConnectorHub(config)
-    llm = llm or AnthropicLLM(config.llm["model"], int(config.llm["max_tokens"]))
+    llm = llm or make_llm(config.llm)
     agent = Agent(config, hub, llm)
+    threads = threads or ThreadStore()
 
     app = FastAPI(title="db-dog", version=__version__)
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "testserver"])
@@ -113,9 +121,38 @@ def create_app(config: Config | None = None, llm: LLM | None = None, hub: Connec
             raise HTTPException(503, str(e)) from e
         except KeyError as e:
             raise HTTPException(400, str(e.args[0])) from e
+        except HTTPException:
+            raise
+        except Exception as e:  # database-side errors (bad column, type mismatch, timeout): explain, don't 500
+            first = (str(e).splitlines() or [""])[0][:300]
+            raise HTTPException(400, f"database error: {type(e).__name__}: {first}") from e
         env = config.environments[res.env]
         return {"environment": env.name, "production": env.production, "store": req.store,
                 "database": req.database, **out.to_dict()}
+
+    def _threads(fn, *args):
+        try:
+            return fn(*args)
+        except ThreadStoreUnavailable as e:
+            raise HTTPException(503, str(e)) from e
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+
+    @app.get("/api/threads")
+    def list_threads() -> list[dict[str, Any]]:
+        return _threads(threads.list)
+
+    @app.put("/api/threads/{thread_id}")
+    def save_thread(thread_id: str, body: ThreadBody) -> dict[str, str]:
+        _threads(threads.save, thread_id, body.title, body.turns)
+        return {"status": "saved"}
+
+    @app.delete("/api/threads/{thread_id}")
+    def delete_thread(thread_id: str) -> dict[str, str]:
+        if not ID_RE.match(thread_id):
+            raise HTTPException(400, "invalid thread id")
+        _threads(threads.delete, thread_id)
+        return {"status": "deleted"}
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:

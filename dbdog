@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Run db-dog:  ./dbdog          start (installs deps on first run, starts the thread store, opens the browser)
+#              ./dbdog stop     stop the server
+#              PORT=9000 ./dbdog   use another port
+set -euo pipefail
+cd "$(dirname "$0")"
+PORT="${PORT:-8137}"
+URL="http://127.0.0.1:${PORT}"
+
+stop_server() {
+  local pids; pids="$(lsof -tiTCP:"$PORT" -sTCP:LISTEN 2>/dev/null || true)"
+  [ -n "$pids" ] && kill $pids && echo "stopped db-dog on port $PORT" || echo "db-dog is not running on port $PORT"
+}
+[ "${1:-}" = "stop" ] && { stop_server; exit 0; }
+
+if [ ! -x .venv/bin/python ]; then
+  echo "first run: creating .venv and installing dependencies..."
+  python3 -m venv .venv
+  .venv/bin/pip install -q -e ".[dev]" 2>/dev/null || .venv/bin/pip install -q -e .
+fi
+
+# Thread persistence (optional): a small Postgres in docker. Without it threads live only in the page.
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  docker compose up -d threads-db >/dev/null 2>&1 && echo "thread store: running" || echo "thread store: could not start (threads will not persist)"
+else
+  echo "thread store: docker not available (threads will not persist)"
+fi
+
+stop_server >/dev/null 2>&1 || true
+echo "db-dog -> $URL   (Ctrl+C to stop)"
+( sleep 2; command -v open >/dev/null 2>&1 && open "$URL" || true ) &
+exec .venv/bin/python -m db_dog --port "$PORT"

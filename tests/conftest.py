@@ -50,10 +50,14 @@ class FakePostgres:
                 "indexes": [], "has_company_id": table == "employees"}
 
     def company_id_tables(self, database):
-        return {"employees"}
+        return {"employees", "audit_log"}
+
+    def big_tables(self, database):
+        return {"audit_log": 5_000_000}
 
     def query(self, database, sql) -> QueryResult:
-        prepared = prepare_sql(sql, "postgres", self.config, self.env, self.company_id_tables(database))
+        prepared = prepare_sql(sql, "postgres", self.config, self.env, self.company_id_tables(database),
+                               self.big_tables(database))
         if not prepared.ok:
             raise PolicyError(prepared.reason)
         self.queries.append(prepared.sql)

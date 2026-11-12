@@ -5,6 +5,11 @@
 # environment variable) rather than written into the file.
 
 llm:
+  # claude_cli    = your own local Claude Code login (`claude`), no API key needed (default)
+  # anthropic_api = Anthropic API using ANTHROPIC_API_KEY (uses `model` below)
+  # auto          = API key if set, otherwise the local `claude`
+  backend: claude_cli
+  # cli_model: sonnet           # optional model alias for the claude_cli backend
   model: claude-sonnet-5-5
   max_steps: 8                 # max tool-use rounds per question
   max_tokens: 2048

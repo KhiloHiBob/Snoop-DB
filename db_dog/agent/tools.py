@@ -7,9 +7,11 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from ..config import Config, EnvConfig
+from . import modules
 from ..connectors import ConnectorHub
 from ..connectors.postgres import PolicyError
 from ..preflight import PreflightError
+from ..safety.sql_guard import guard_sql
 
 LLM_ROW_PREVIEW = 50
 
@@ -47,6 +49,9 @@ def tool_schemas(stores: list[str]) -> list[dict[str, Any]]:
             "input_schema": obj({"sql": s, "database_like": {**s, "description": "only databases containing this text"},
                                  "title": s}, ["sql"]),
         })
+    if modules.available():
+        tools.append({"name": "module_skill", "description": "Load the DB skill of a Bob module (tables, columns, relationships, recipes) by name.",
+                      "input_schema": obj({"module": {**s, "enum": modules.available()}}, ["module"])})
     if "redis" in stores:
         tools.append({"name": "redis_read", "description": "Run ONE read-only Redis command (SCAN, not KEYS).",
                       "input_schema": obj({"command": s, "title": s}, ["command"])})
@@ -86,6 +91,8 @@ class ToolRuntime:
 
     def _llm_view(self, res: dict[str, Any]) -> dict[str, Any]:
         view = {"columns": res["columns"], "row_count": res["row_count"], "truncated": res["truncated"]}
+        if res.get("notes"):
+            view["notes"] = res["notes"]
         if self.rows_visible_to_llm:
             view["rows"] = res["rows"][:LLM_ROW_PREVIEW]
             if res["row_count"] > LLM_ROW_PREVIEW:
@@ -135,6 +142,8 @@ class ToolRuntime:
             res = self.hub.get(self.env.name, store).query(a.get("database"), a["sql"]).to_dict()
             self._record("answer", a.get("title") or "Result", store, a.get("database"), res)
             return self._llm_view(res)
+        if name == "module_skill":
+            return {"skill": modules.load(a["module"])}
         if name == "fan_out_query":
             return self._fan_out(a)
         if name == "redis_read":
@@ -164,10 +173,13 @@ class ToolRuntime:
         dbs = conn.list_databases()
         if a.get("database_like"):
             dbs = [d for d in dbs if a["database_like"].lower() in d.lower()]
-        cap = int(self.config.limits["fan_out_max_databases"])
+        # Catalog-only queries (information_schema / pg_catalog) are cheap, so they search every database.
+        metadata_only = guard_sql(a["sql"], "postgres").is_metadata
+        cap = int(self.config.limits["fan_out_max_metadata_databases" if metadata_only else "fan_out_max_databases"])
         notes: list[str] = []
         if len(dbs) > cap:
-            notes.append(f"only the first {cap} of {len(dbs)} databases were queried; narrow with database_like")
+            notes.append(f"ONLY the first {cap} of {len(dbs)} databases were queried (alphabetical), so the result "
+                         "is incomplete; narrow with database_like and run again")
             dbs = dbs[:cap]
         columns: list[str] = []
         rows: list[list[Any]] = []
@@ -188,5 +200,6 @@ class ToolRuntime:
         rows = rows[:max_rows]
         res = {"columns": columns, "rows": rows, "row_count": len(rows), "truncated": truncated,
                "elapsed_ms": 0, "executed": executed, "notes": notes + [f"queried {len(dbs)} database(s)"]}
-        self._record("answer", a.get("title") or "Across databases", "postgres", None, res)
+        if rows:  # an empty table is noise for the user; the agent still gets the notes below
+            self._record("answer", a.get("title") or "Across databases", "postgres", None, res)
         return self._llm_view(res)

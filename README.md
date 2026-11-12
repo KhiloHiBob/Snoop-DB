@@ -13,11 +13,14 @@ environment stated.
 
 ## Quick start
 
+`./dbdog` starts everything (venv, thread store, server, browser); `./dbdog stop` stops it.
+
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 docker compose up -d                      # demo Postgres on 127.0.0.1:55432
-export ANTHROPIC_API_KEY=...              # needed for the chat; /api/query works without it
 cp config/config.example.yaml config/local.yaml   # then edit (git-ignored)
+# The chat uses your own local Claude login (`claude`, Claude Code CLI): no API key needed.
+# To use the Anthropic API instead: set llm.backend: anthropic_api and export ANTHROPIC_API_KEY.
 .venv/bin/python -m db_dog                # http://127.0.0.1:8137
 ```
 
@@ -63,3 +66,10 @@ Implement a connector in `db_dog/connectors/` (an allowlist validator plus `quer
 ## Tests
 
 `.venv/bin/python -m pytest` (no database or API key needed).
+
+## Bob module skills (DBA knowledge)
+
+`python tools/crop_modules.py ~/IdeaProjects/hibob` crops each monolith module's `AGENTS.md` and DB docs into
+`knowledge_local/modules/<module>.md` (git-ignored, Bob-internal). The agent lists the modules in its prompt,
+preloads the one a question mentions (e.g. timeoff, attendance, site) and can load any other with the
+`module_skill` tool. Files starting with `<!-- curated` (hand-written, e.g. timeoff) are never overwritten.

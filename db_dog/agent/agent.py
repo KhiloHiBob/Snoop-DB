@@ -51,7 +51,8 @@ class Agent:
                 f"(also mentioned: {', '.join(resolution.ambiguous)}). Pick one in the selector to be explicit."
             )
 
-        system = build_system_prompt(self.config, env, visible, stores)
+        system = build_system_prompt(self.config, env, visible, stores,
+                                     " ".join([*(m.get("content", "") for m in (history or [])[-4:] if isinstance(m.get("content"), str)), message]))
         tools = tool_schemas(stores)
         messages: list[dict[str, Any]] = [
             {"role": m["role"], "content": m["content"]}

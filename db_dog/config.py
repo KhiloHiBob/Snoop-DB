@@ -21,10 +21,13 @@ DEFAULT_LIMITS: dict[str, Any] = {
     "star_rows": 50,
     "max_result_bytes": 2_000_000,
     "max_cell_chars": 2000,
-    "fan_out_max_databases": 25,
+    "fan_out_max_databases": 25,            # for queries that read data
+    "fan_out_max_metadata_databases": 200,  # catalog-only queries are cheap, so search them all
+    "big_table_rows": 100_000,              # at or above this, a company_id filter is always required
 }
 
 DEFAULT_LLM: dict[str, Any] = {
+    "backend": "claude_cli",   # your local Claude login (default) | anthropic_api | auto
     "model": "claude-sonnet-5-5",
     "max_steps": 8,
     "max_tokens": 2048,

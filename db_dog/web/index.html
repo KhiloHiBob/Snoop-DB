@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>db-dog</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B6%3C/text%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #667085; --line: #e3e6eb;
@@ -86,9 +87,62 @@
              background: var(--panel); }
   textarea:focus, select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
   #send { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 12px; padding: 0 20px; height: 46px; font-weight: 600; cursor: pointer; }
-  #send:disabled { opacity: .5; cursor: progress; }
+  #send.stop { background: var(--prod); color: #fff; }
   .hint { max-width: 1100px; margin: 6px auto 0; color: var(--muted); font-size: 12px; }
-  @media (max-width: 600px) { header { padding: 10px 16px; } main { padding: 12px 16px; } footer { padding: 8px 16px 12px; } .msg-user { max-width: 92%; } }
+  .compose { display: flex; align-items: flex-end; gap: 12px; max-width: 1100px; margin: 0 auto; }
+  .compose form { flex: 1; min-width: 0; margin: 0; max-width: none; }
+  .dog { width: 96px; height: 70px; flex: none; overflow: visible; }
+  .dog .fur { fill: #c98a4b; } .dog .ear { fill: #8a5a2b; } .dog .ink { fill: #1b1f24; } .dog .tongue { fill: #f06292; }
+  .dog .tail { transform-origin: 8px 24px; animation: wag .45s ease-in-out infinite alternate; }
+  .dog .eye { transform-origin: center; transform-box: fill-box; animation: blink 4s infinite; }
+  .dog .tongue { transform-origin: 40px 28px; animation: pant 1.2s ease-in-out infinite; }
+  .dog-wrap { display: inline-flex; animation: bob 2.4s ease-in-out infinite; }
+  footer.busy .dog-wrap { animation: run .35s ease-in-out infinite; }
+  footer.busy .dog .tail { animation-duration: .15s; }
+  @keyframes wag { from { transform: rotate(-22deg); } to { transform: rotate(28deg); } }
+  @keyframes blink { 0%, 94%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+  @keyframes pant { 0%, 100% { transform: scaleY(1); } 50% { transform: scaleY(1.35); } }
+  @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+  @keyframes run { 0%, 100% { transform: translate(0, 0) rotate(0); } 50% { transform: translate(3px, -4px) rotate(-3deg); } }
+  .app { flex: 1; display: flex; min-height: 0; }
+  .chat { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  #threads { width: 250px; flex: none; display: flex; flex-direction: column; background: var(--panel); border-right: 1px solid var(--line); }
+  .th-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; font-weight: 600; border-bottom: 1px solid var(--line); }
+  .plug { width: 30px; height: 30px; border-radius: 8px; border: 0; background: var(--accent); color: var(--accent-ink); font-size: 20px; line-height: 1; cursor: pointer; }
+  #tlist { flex: 1; overflow-y: auto; margin: 0; padding: 6px; list-style: none; }
+  .th { display: flex; align-items: center; gap: 6px; padding: 8px 8px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; }
+  .th:hover { background: var(--soft); }
+  .th.active { background: var(--soft); border-color: var(--accent); }
+  .th .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); flex: none; }
+  .th.running .dot { background: var(--ok); animation: pulse 1s infinite; }
+  .th.stopped .dot { background: var(--warn); }
+  .th .tt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; }
+  .th .ic { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 2px 5px; border-radius: 5px; font-size: 13px; }
+  .th .ic:hover { color: var(--prod); background: var(--prod-bg); }
+  .th .ic[hidden] { display: none; }
+  .msg-user .edit { margin-left: 10px; border: 0; background: transparent; color: inherit; opacity: .7; cursor: pointer; font-size: 12px; text-decoration: underline; }
+  .msg-user .edit:hover { opacity: 1; }
+  .play { position: relative; height: 64px; width: 100%; max-width: 320px; overflow: hidden; margin-top: 8px; }
+  .play svg { position: absolute; bottom: 0; left: 0; width: 70px; height: 51px; overflow: visible; animation: chase 2.4s ease-in-out infinite alternate; }
+  .play .ball { position: absolute; bottom: 2px; width: 16px; height: 16px; border-radius: 50%; background: #e5484d; box-shadow: inset -3px -3px 0 rgba(0,0,0,.18);
+                animation: bounce 2.4s ease-in-out infinite alternate; left: 190px; }
+  .play .fur { fill: #c98a4b; } .play .ear { fill: #8a5a2b; } .play .ink { fill: #1b1f24; } .play .tongue { fill: #f06292; }
+  .play .tail { transform-origin: 8px 24px; animation: wag .18s ease-in-out infinite alternate; }
+  .play .leg { transform-box: fill-box; transform-origin: top center; animation: step .3s ease-in-out infinite alternate; }
+  .play .leg.b { animation-delay: -.15s; }
+  @keyframes chase { 0% { transform: translateX(0); } 100% { transform: translateX(150px); } }
+  @keyframes bounce { 0% { transform: translate(0, 0); } 25% { transform: translate(-40px, -22px); } 50% { transform: translate(-40px, 0); } 75% { transform: translate(-90px, -18px); } 100% { transform: translate(-190px, 0); } }
+  @keyframes step { from { transform: rotate(-25deg); } to { transform: rotate(25deg); } }
+  @media (prefers-reduced-motion: reduce) { .play *, .play svg, .play .ball { animation: none !important; } }
+  .msg-user.editing { width: min(640px, 92%); }
+  .edit-box { width: 100%; resize: none; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); padding: 8px 10px; font: inherit; }
+  .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 6px; }
+  .msg-user.editing .edit { opacity: 1; }
+  .msg-user.editing .edit.save { font-weight: 700; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (max-width: 760px) { #threads { width: 150px; } }
+  @media (prefers-reduced-motion: reduce) { .dog *, .dog-wrap { animation: none !important; } }
+  @media (max-width: 600px) { .dog { width: 64px; height: 47px; } header { padding: 10px 16px; } main { padding: 12px 16px; } footer { padding: 8px 16px 12px; } .msg-user { max-width: 92%; } }
 </style>
 </head>
 <body>
@@ -102,29 +156,50 @@
   </label>
   <span class="spacer"></span>
   <button class="ghost btn" id="api" title="API address">API</button>
-  <button class="ghost btn" id="clear">Clear</button>
+  <button class="ghost btn" id="clear" title="Clear this thread">Clear</button>
 </header>
 
-<main id="main"><div class="wrap" id="log"></div></main>
+<div class="app">
+<aside id="threads" aria-label="Threads">
+  <div class="th-head"><span>Threads</span><button class="plug" id="newthread" type="button" title="New thread" aria-label="New thread">+</button></div>
+  <ul id="tlist"></ul>
+  <div id="storewarn" class="note" hidden style="margin:8px;font-size:12px">Threads are not being saved (store offline). Run <code>docker compose up -d threads-db</code>.</div>
+</aside>
+<div class="chat">
+<main id="main"></main>
 
-<footer>
+<footer id="top">
+  <div class="compose">
+  <span class="dog-wrap" aria-hidden="true"><svg class="dog"  viewBox="0 0 60 44">
+    <path class="fur tail" d="M9 24 Q-2 14 3 6 Q8 14 14 22Z"/>
+    <rect class="fur" x="8" y="22" width="30" height="14" rx="7"/>
+    <rect class="fur" x="12" y="32" width="5" height="10" rx="2.5"/><rect class="fur" x="30" y="32" width="5" height="10" rx="2.5"/>
+    <circle class="fur" cx="42" cy="18" r="11"/><ellipse class="fur" cx="52" cy="22" rx="7" ry="5"/>
+    <path class="ear" d="M34 10 Q30 2 37 5 Q40 8 40 12Z"/><path class="ear" d="M46 8 Q52 1 52 9 Q50 12 47 12Z"/>
+    <circle class="ink" cx="58" cy="21" r="2"/>
+    <ellipse class="ink eye" cx="44" cy="16" rx="1.8" ry="2.2"/>
+    <path class="tongue" d="M50 26 q2 7 4 0Z"/>
+  </svg></span>
   <form id="form">
     <textarea id="q" rows="1" placeholder="Ask about any table or data… e.g. “list tables that have a company_id column”" autofocus></textarea>
     <button id="send" type="submit">Ask</button>
   </form>
+  </div>
   <div class="hint">Read-only in every environment. Enter to send, Shift+Enter for a new line. The environment used is always shown on the answer.</div>
 </footer>
+</div>
+</div>
 
 <script>
 (() => {
   const $ = (id) => document.getElementById(id);
-  const log = $('log'), main = $('main'), q = $('q'), send = $('send');
+  const main = $('main'), q = $('q'), send = $('send');
+  let log = null;   // the active thread's message container
   const store = {
     get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
   };
   let base = store.get('dbdog.api', location.protocol === 'file:' ? 'http://127.0.0.1:8137' : '');
-  let history = [];
 
   const EXAMPLES = [
     'List all tables in the demo database',
@@ -247,10 +322,10 @@
     return card;
   }
 
-  function showEmpty() {
-    log.replaceChildren(el('div', { class: 'empty' }, el('h2', { text: 'Ask anything about your data' }),
+  function showEmpty(t = active) {
+    t.el.replaceChildren(el('div', { class: 'empty' }, el('h2', { text: 'Ask anything about your data' }),
       el('div', { text: 'Plain English in, safe read-only queries out. Tables, counts, schemas, lookups.' }),
-      el('div', { class: 'chips' }, EXAMPLES.map((t) => el('button', { class: 'chip', type: 'button', text: t, onclick: () => { q.value = t; ask(); } })))));
+      el('div', { class: 'chips' }, EXAMPLES.map((t) => el('button', { class: 'chip', type: 'button', text: t, onclick: () => { ask(t); } })))));
   }
 
   async function api(path, opts) {
@@ -260,30 +335,125 @@
     return body;
   }
 
-  async function ask() {
-    const text = q.value.trim();
-    if (!text || send.disabled) return;
-    if (log.querySelector('.empty')) log.replaceChildren();
-    log.append(el('div', { class: 'msg-user', text }));
-    const pending = el('div', { class: 'card' }, el('span', { class: 'dots', text: 'Fetching' }));
-    log.append(pending); scroll();
-    q.value = ''; q.style.height = ''; send.disabled = true;
-    try {
-      const data = await api('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ message: text, environment: $('env').value, llm_sees_rows: $('rows').checked, history }) });
-      pending.replaceWith(renderAnswer(data));
-      history.push({ role: 'user', content: text }, { role: 'assistant', content: `[${data.environment}] ${data.summary || ''}` });
-      history = history.slice(-10);
-    } catch (e) {
-      pending.replaceWith(el('div', { class: 'card' }, el('div', { class: 'note err', text: String(e.message || e) }),
-        el('div', { class: 'meta', text: `API: ${base || location.origin}` })));
-    } finally { send.disabled = false; q.focus(); scroll(); }
+  // ---- threads (in memory only: results may contain data, so nothing is persisted)
+  const threads = []; let active = null, seq = 0;
+  const tlist = $('tlist');
+
+  const uid = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  let storeOk = true;
+  function persist(t) {   // fire and forget; the page keeps working in memory if the store is offline
+    const turns = t.turns.filter((x) => x.kind).map((x) => ({ text: x.text, kind: x.kind, answer: x.answer || null, note: x.note || null, hist: x.hist }));
+    api('/api/threads/' + t.id, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ title: t.title, turns }) })
+      .then(() => setStore(true), () => setStore(false));
+  }
+  function setStore(ok) { storeOk = ok; $('storewarn').hidden = ok; }
+  function userEl(t, turn) {
+    return el('div', { class: 'msg-user' }, el('span', { text: turn.text }),
+      el('button', { class: 'edit', type: 'button', title: 'Edit this message and resend (replaces everything after it)', text: '✎ Edit', onclick: () => edit(t, turn) }));
+  }
+  const noteCard = (text, err, extra) => el('div', { class: 'card' }, el('div', { class: 'note' + (err ? ' err' : ''), text }), extra || null);
+  function restore(saved) {
+    const t = { id: saved.id, title: saved.title, el: el('div', { class: 'wrap' }), turns: [], busy: false, ctrl: null, state: 'idle', named: true };
+    for (const x of saved.turns || []) {
+      const turn = { text: x.text, kind: x.kind, answer: x.answer, note: x.note, hist: x.hist };
+      turn.userEl = userEl(t, turn);
+      turn.cardEl = x.kind === 'answer' && x.answer ? renderAnswer(x.answer) : noteCard(x.note || 'No result was saved.', x.kind === 'error');
+      t.turns.push(turn); t.el.append(turn.userEl, turn.cardEl);
+    }
+    if (!t.turns.length) { t.named = false; showEmpty(t); }
+    threads.push(t);
+  }
+  async function loadThreads() {
+    try { (await api('/api/threads')).forEach(restore); setStore(true); } catch { setStore(false); }
+    if (!threads.length) newThread(); else open(threads[threads.length - 1]);
   }
 
-  $('form').addEventListener('submit', (e) => { e.preventDefault(); ask(); });
-  q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); } });
+  function newThread() {
+    const t = { id: uid(), title: 'New thread', el: el('div', { class: 'wrap' }), turns: [], busy: false, ctrl: null, state: 'idle', named: false };
+    threads.push(t); showEmpty(t); open(t); q.focus(); return t;
+  }
+  function open(t) {
+    active = t; log = t.el; main.replaceChildren(t.el); renderList(); controls(); scroll();
+  }
+  function renderList() {
+    tlist.replaceChildren(...threads.map((t) => el('li', { class: 'th ' + t.state + (t === active ? ' active' : ''), title: t.title, onclick: () => open(t) },
+      el('span', { class: 'dot' }), el('span', { class: 'tt', text: t.title }),
+      el('button', { class: 'ic', type: 'button', title: 'Stop', 'aria-label': 'Stop thread', text: '■', hidden: t.busy ? null : '', onclick: (e) => { e.stopPropagation(); stop(t); } }),
+      el('button', { class: 'ic', type: 'button', title: 'Delete thread', 'aria-label': 'Delete thread', text: '✕', onclick: (e) => { e.stopPropagation(); remove(t); } }))));
+    tlist.querySelectorAll('[hidden=""]').forEach((b) => b.setAttribute('hidden', ''));
+  }
+  function controls() {
+    send.textContent = active.busy ? 'Stop' : 'Ask'; send.classList.toggle('stop', active.busy);
+    $('top').classList.toggle('busy', active.busy);
+  }
+  function stop(t) { if (t.ctrl) t.ctrl.abort(); }
+  function edit(t, turn) {   // edit in place, inside the message bubble; saving re-asks from this point
+    if (turn.userEl.querySelector('textarea')) return;
+    const box = el('textarea', { class: 'edit-box', rows: '2' }); box.value = turn.text;
+    const fit = () => { box.style.height = 'auto'; box.style.height = Math.min(box.scrollHeight, 220) + 'px'; };
+    box.addEventListener('input', fit);
+    const done = () => { turn.userEl.replaceWith(userEl(t, turn)); };
+    const save = async () => {
+      const text = box.value.trim(); if (!text) return;
+      if (text === turn.text && turn.kind) { done(); return; }
+      if (t.busy) { stop(t); while (t.busy) await new Promise((r) => setTimeout(r, 20)); }
+      const i = t.turns.indexOf(turn); if (i < 0) return;
+      t.turns.splice(i).forEach((x) => { x.userEl.remove(); x.cardEl.remove(); });
+      if (!t.turns.length) t.named = false;
+      ask(text);
+    };
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); save(); }
+      if (e.key === 'Escape') done();
+    });
+    const bubble = el('div', { class: 'msg-user editing' }, box,
+      el('div', { class: 'edit-actions' },
+        el('button', { class: 'edit', type: 'button', text: 'Cancel', onclick: done }),
+        el('button', { class: 'edit save', type: 'button', text: 'Save & resend', onclick: save })));
+    turn.userEl.replaceWith(bubble); turn.userEl = bubble; fit(); box.focus();
+  }
+  function remove(t) {
+    stop(t); t.removed = true;
+    api('/api/threads/' + t.id, { method: 'DELETE' }).catch(() => setStore(false));
+    const i = threads.indexOf(t); threads.splice(i, 1);
+    if (!threads.length) newThread(); else if (t === active) open(threads[Math.min(i, threads.length - 1)]); else renderList();
+  }
+
+  async function ask(text) {
+    const t = active;
+    const fromBox = text === undefined;   // resent/edited text must not wipe a draft in the bottom box
+    text = (text ?? q.value).trim();
+    if (!text || t.busy) return;
+    if (t.el.querySelector('.empty')) t.el.replaceChildren();
+    if (!t.named) { t.title = text.length > 38 ? text.slice(0, 38) + '…' : text; t.named = true; }
+    const turn = { text, hist: null };
+    const history = t.turns.slice(-5).flatMap((x) => x.hist || []);   // answered turns only
+    turn.userEl = userEl(t, turn);
+    const play = el('div', { class: 'play', 'aria-hidden': 'true' }); play.innerHTML = '<svg viewBox="0 0 60 44" aria-hidden="true"><path class="fur tail" d="M9 24 Q-2 14 3 6 Q8 14 14 22Z"/><rect class="fur" x="8" y="22" width="30" height="14" rx="7"/><rect class="fur leg" x="12" y="32" width="5" height="10" rx="2.5"/><rect class="fur leg b" x="30" y="32" width="5" height="10" rx="2.5"/><circle class="fur" cx="42" cy="18" r="11"/><ellipse class="fur" cx="52" cy="22" rx="7" ry="5"/><path class="ear" d="M34 10 Q30 2 37 5 Q40 8 40 12Z"/><path class="ear" d="M46 8 Q52 1 52 9 Q50 12 47 12Z"/><circle class="ink" cx="58" cy="21" r="2"/><ellipse class="ink" cx="44" cy="16" rx="1.8" ry="2.2"/><path class="tongue" d="M50 26 q2 7 4 0Z"/></svg>'; play.append(el('span', { class: 'ball' }));
+    const pending = el('div', { class: 'card' }, el('span', { class: 'dots', text: 'Fetching' }), ' ',
+      el('button', { class: 'btn', type: 'button', text: '■ Stop', onclick: () => stop(t) }), play);
+    turn.cardEl = pending; t.turns.push(turn);
+    t.el.append(turn.userEl, pending); if (t === active) scroll();
+    if (fromBox) { q.value = ''; q.style.height = ''; }
+    t.busy = true; t.state = 'running'; t.ctrl = new AbortController(); renderList(); controls();
+    try {
+      const data = await api('/api/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, signal: t.ctrl.signal,
+        body: JSON.stringify({ message: text, environment: $('env').value, llm_sees_rows: $('rows').checked, history }) });
+      const card = renderAnswer(data); pending.replaceWith(card); turn.cardEl = card; turn.kind = 'answer'; turn.answer = data;
+      turn.hist = [{ role: 'user', content: text }, { role: 'assistant', content: `[${data.environment}] ${data.summary || ''}` }]; t.state = 'idle';
+    } catch (e) {
+      if (e.name === 'AbortError') { t.state = 'stopped'; turn.kind = 'stopped'; turn.note = 'Stopped. (The server may finish the query in the background; it is read-only.)'; turn.cardEl = noteCard(turn.note); pending.replaceWith(turn.cardEl); }
+      else { t.state = 'idle'; turn.kind = 'error'; turn.note = String(e.message || e); turn.cardEl = noteCard(turn.note, true, el('div', { class: 'meta', text: `API: ${base || location.origin}` })); pending.replaceWith(turn.cardEl); }
+    } finally {
+      t.busy = false; t.ctrl = null; renderList(); if (!t.removed) persist(t); if (t === active) { controls(); q.focus(); scroll(); }
+    }
+  }
+
+  $('form').addEventListener('submit', (e) => { e.preventDefault(); if (active.busy) stop(active); else ask(); });
+  $('newthread').addEventListener('click', newThread);
+  q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!active.busy) ask(); } });
   q.addEventListener('input', () => { q.style.height = 'auto'; q.style.height = Math.min(q.scrollHeight, 160) + 'px'; });
-  $('clear').addEventListener('click', () => { history = []; showEmpty(); });
+  $('clear').addEventListener('click', () => { if (active.busy) return; active.turns = []; active.named = false; active.title = 'New thread'; showEmpty(); renderList(); persist(active); });
   $('api').addEventListener('click', () => {
     const v = prompt('db-dog API address (empty = same origin)', base);
     if (v !== null) { base = v.trim().replace(/\/$/, ''); store.set('dbdog.api', base); loadEnvs(); }
@@ -300,7 +470,7 @@
     }
   }
 
-  showEmpty(); loadEnvs();
+  loadEnvs(); loadThreads();
 })();
 </script>
 </body>
