@@ -1,0 +1,58 @@
+# db-dog example configuration -- placeholders only.
+#
+# Copy this file to config/local.yaml (git-ignored) and fill in your real hosts, ports and
+# resource names there. Secrets should be referenced with `*_env` keys (the name of an
+# environment variable) rather than written into the file.
+
+llm:
+  model: claude-sonnet-5-5
+  max_steps: 8                 # max tool-use rounds per question
+  max_tokens: 2048
+  # Rows are never sent to the LLM for production environments unless this is true.
+  allow_prod_rows_to_llm: false
+
+limits:
+  statement_timeout_ms: 15000
+  max_rows: 500                # default LIMIT injected into every query
+  star_rows: 50                # LIMIT used instead when the query is SELECT *
+  max_result_bytes: 2000000
+  max_cell_chars: 2000
+  fan_out_max_databases: 25
+
+# Databases never listed or fanned out over.
+exclude_databases: [postgres, rdsadmin, template0, template1]
+
+# Tables that may be queried without a company_id predicate (documented aggregate scans, etc.)
+company_id_exempt_tables: []
+
+environments:
+  # The demo database from docker-compose.yml, so the project runs without any private access.
+  local:
+    description: Demo database (docker compose)
+    production: false
+    company_id_enforced: false
+    keywords: [local, localhost, docker, demo]
+    postgres:
+      host: localhost
+      port: 55432
+      user: dbdog
+      password_env: DB_DOG_LOCAL_PG_PASSWORD   # demo default: dbdog
+      default_database: dog_demo
+
+  # Template for a tunnelled, production-like environment (every field is a placeholder).
+  prod-example:
+    description: Example of a production environment reached through a tunnel
+    production: true                 # enforces company_id predicates, hides rows from the LLM
+    company_id_enforced: true
+    keywords: [prod-example]
+    sdm_resource: your_resource_name # shown in the "tunnel is down" hint
+    postgres:
+      host: localhost
+      port: 0                        # the local tunnel port
+      user: ""
+      default_database: your_database
+    # Optional extra stores (all read-only, allowlist based):
+    # singlestore: {host: localhost, port: 3306, user: root, password_env: DB_DOG_S2_PASSWORD, default_database: ""}
+    # redis:       {url_env: DB_DOG_REDIS_URL}
+    # mongo:       {uri_env: DB_DOG_MONGO_URI}
+    # opensearch:  {url: "http://localhost:9200"}

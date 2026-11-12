@@ -1,0 +1,18 @@
+# Demo database so db-dog runs without any private access.
+#   docker compose up -d
+#   export DB_DOG_LOCAL_PG_PASSWORD=dbdog
+services:
+  demo-postgres:
+    image: postgres:16-alpine
+    ports:
+      - "127.0.0.1:55432:5432"
+    environment:
+      POSTGRES_USER: dbdog
+      POSTGRES_PASSWORD: dbdog
+      POSTGRES_DB: dog_demo
+    volumes:
+      - ./sample/seed.sql:/docker-entrypoint-initdb.d/seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dbdog -d dog_demo"]
+      interval: 5s
+      retries: 10
